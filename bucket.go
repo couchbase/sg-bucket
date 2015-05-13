@@ -7,12 +7,11 @@
 //  either express or implied. See the License for the specific language governing permissions
 //  and limitations under the License.
 
-package walrus
+package sgbucket
 
 import (
 	"errors"
 	"fmt"
-	"log"
 )
 
 // Abstract storage interface based on Bucket from the go-couchbase package.
@@ -110,9 +109,3 @@ type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, err
 // Set this to true to enable logging
 
 var Logging bool
-
-func ohai(fmt string, args ...interface{}) {
-	if Logging {
-		log.Printf("Walrus: "+fmt, args...)
-	}
-}

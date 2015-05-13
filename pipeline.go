@@ -1,4 +1,4 @@
-package walrus
+package sgbucket
 
 import (
 	"runtime"

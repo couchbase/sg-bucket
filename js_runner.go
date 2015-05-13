@@ -7,7 +7,7 @@
 //  either express or implied. See the License for the specific language governing permissions
 //  and limitations under the License.
 
-package walrus
+package sgbucket
 
 import (
 	"encoding/json"
@@ -154,7 +154,7 @@ func (runner *JSRunner) Call(inputs ...interface{}) (interface{}, error) {
 		inputJS := make([]interface{}, len(inputs))
 		for i, input := range inputs {
 			if jsonStr, ok := input.(JSONString); ok {
-				if input,err = runner.jsonToValue(string(jsonStr)); err != nil {
+				if input, err = runner.jsonToValue(string(jsonStr)); err != nil {
 					return nil, err
 				}
 			}

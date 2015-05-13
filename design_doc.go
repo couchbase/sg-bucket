@@ -7,7 +7,7 @@
 //  either express or implied. See the License for the specific language governing permissions
 //  and limitations under the License.
 
-package walrus
+package sgbucket
 
 type ViewDef struct {
 	Map    string `json:"map"`

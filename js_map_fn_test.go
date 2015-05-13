@@ -7,12 +7,13 @@
 //  either express or implied. See the License for the specific language governing permissions
 //  and limitations under the License.
 
-package walrus
+package sgbucket
 
 import (
 	"fmt"
-	"github.com/couchbaselabs/go.assert"
 	"testing"
+
+	"github.com/couchbaselabs/go.assert"
 )
 
 // Just verify that the calls to the emit() fn show up in the output.
