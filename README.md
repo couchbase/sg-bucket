@@ -2,11 +2,7 @@
 
 # sg-bucket
 
-This repo contains the interfaces and common code related to Sync Gateway buckets.
+This repo contains:
 
-The Sync Gateway code and concrete bucket implementations ([walrus](https://github.com/couchbaselabs/walrus), [forestdb-bucket](https://github.com/couchbaselabs/forestdb-bucket/)) depend on the this repo.
-
-## Not in use yet
-
-There is an outstanding [Sync Gateway ticket](https://github.com/couchbase/sync_gateway/issues/855) to refactor Sync Gateway and all concrete bucket implementations 
-
+- Interfaces needed by all concrete implementations of the `sgbucket.Bucket` interface, as well as by Sync Gateway itself.
+- Common code used by certain sg-bucket concrete implementations ([walrus](https://github.com/couchbaselabs/walrus), [forestdb-bucket](https://github.com/couchbaselabs/forestdb-bucket/)) and to a lesser extent by Sync Gateway itself.
