@@ -3,7 +3,6 @@ package sgbucket
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"sort"
 )
 
@@ -114,7 +113,7 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 	}
 
 	result.TotalRows = len(result.Rows)
-	log.Printf("\t... view returned %d rows", result.TotalRows)
+	logg("\t... view returned %d rows", result.TotalRows)
 	return result, nil
 }
 

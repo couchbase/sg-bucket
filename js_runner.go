@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/robertkrimen/otto"
 )
@@ -63,7 +62,7 @@ func (runner *JSRunner) Init(funcSource string) error {
 			str, _ := arg.ToString()
 			output += str + " "
 		}
-		log.Printf("JS: %s", output)
+		logg("JS: %s", output)
 		return otto.UndefinedValue()
 	})
 
