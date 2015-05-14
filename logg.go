@@ -4,6 +4,6 @@ import "log"
 
 func logg(fmt string, args ...interface{}) {
 	if Logging {
-		log.Printf("Walrus: "+fmt, args...)
+		log.Printf("SG-Bucket: "+fmt, args...)
 	}
 }
