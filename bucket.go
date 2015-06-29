@@ -20,6 +20,7 @@ type Bucket interface {
 	GetName() string
 	Get(k string, rv interface{}) error
 	GetRaw(k string) ([]byte, error)
+	GetBulkRaw(keys []string) (map[string][]byte, error)
 	Add(k string, exp int, v interface{}) (added bool, err error)
 	AddRaw(k string, exp int, v []byte) (added bool, err error)
 	Append(k string, data []byte) error
