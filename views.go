@@ -94,7 +94,7 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 		newRows := make(ViewRows, len(result.Rows))
 		for i, row := range result.Rows {
 			//OPT: This may unmarshal the same doc more than once
-			raw, err := bucket.GetRaw(row.ID)
+			raw, _, err := bucket.GetRaw(row.ID)
 			if err != nil {
 				return result, err
 			}
