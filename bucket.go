@@ -18,8 +18,8 @@ import (
 // A Bucket is a key-value store with a map/reduce query interface, as found in Couchbase Server 2.
 type Bucket interface {
 	GetName() string
-	Get(k string, rv interface{}) error
-	GetRaw(k string) ([]byte, error)
+	Get(k string, rv interface{}) (cas uint64, err error)
+	GetRaw(k string) (rv []byte, cas uint64, err error)
 	GetBulkRaw(keys []string) (map[string][]byte, error)
 	Add(k string, exp int, v interface{}) (added bool, err error)
 	AddRaw(k string, exp int, v []byte) (added bool, err error)
@@ -28,6 +28,7 @@ type Bucket interface {
 	SetRaw(k string, exp int, v []byte) error
 	Delete(k string) error
 	Write(k string, flags int, exp int, v interface{}, opt WriteOptions) error
+	WriteCas(k string, flags int, exp int, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 	Update(k string, exp int, callback UpdateFunc) error
 	WriteUpdate(k string, exp int, callback WriteUpdateFunc) error
 	Incr(k string, amt, def uint64, exp int) (uint64, error)
