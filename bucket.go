@@ -20,6 +20,8 @@ type Bucket interface {
 	GetName() string
 	Get(k string, rv interface{}) error
 	GetRaw(k string) ([]byte, error)
+	Gets(k string, rv interface{}, caso *uint64) error
+	GetsRaw(k string) (data []byte, flags int, cas uint64, err error)
 	GetBulkRaw(keys []string) (map[string][]byte, error)
 	Add(k string, exp int, v interface{}) (added bool, err error)
 	AddRaw(k string, exp int, v []byte) (added bool, err error)
@@ -28,6 +30,7 @@ type Bucket interface {
 	SetRaw(k string, exp int, v []byte) error
 	Delete(k string) error
 	Write(k string, flags int, exp int, v interface{}, opt WriteOptions) error
+	WriteCas(k string, flags int, exp int, cas uint64, v interface{}, opt WriteOptions) (ocas uint64, err error)
 	Update(k string, exp int, callback UpdateFunc) error
 	WriteUpdate(k string, exp int, callback WriteUpdateFunc) error
 	Incr(k string, amt, def uint64, exp int) (uint64, error)
