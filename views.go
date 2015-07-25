@@ -122,6 +122,15 @@ func ReduceViewResult(reduceFunction string, result *ViewResult) error {
 	case "_count":
 		result.Rows = []*ViewRow{{Value: float64(len(result.Rows))}}
 		return nil
+	case "_sum":
+		total := float64(0)
+		for _, row := range result.Rows {
+			// This could theoretically know how to unwrap our [channels, value]
+			// design_doc emit wrapper, but even so reduce would remain admin only.
+			total += collationToFloat64(row.Value)
+		}
+		result.Rows = []*ViewRow{{Value: total}}
+		return nil
 	default:
 		// TODO: Implement other reduce functions!
 		return fmt.Errorf("Sgbucket only supports _count reduce function")
