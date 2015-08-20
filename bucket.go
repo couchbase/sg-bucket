@@ -21,6 +21,7 @@ type Bucket interface {
 	Get(k string, rv interface{}) (cas uint64, err error)
 	GetRaw(k string) (rv []byte, cas uint64, err error)
 	GetBulkRaw(keys []string) (map[string][]byte, error)
+	GetAndTouchRaw(k string, exp int) (rv []byte, cas uint64, err error)
 	Add(k string, exp int, v interface{}) (added bool, err error)
 	AddRaw(k string, exp int, v []byte) (added bool, err error)
 	Append(k string, data []byte) error
