@@ -29,8 +29,9 @@ type TapEvent struct {
 // A Tap feed. Events from the bucket can be read from the channel returned by Events().
 // Remember to call Close() on it when you're done, unless its channel has closed itself already.
 type TapFeed interface {
-	Events() <-chan TapEvent
-	Close() error
+	Events() <-chan TapEvent      // Read only channel to read TapEvents
+	WriteEvents() chan<- TapEvent // Write only channel to write TapEvents
+	Close() error                 // Close the tap feed
 }
 
 // Parameters for requesting a TAP feed. Call DefaultTapArguments to get a default one.
