@@ -23,7 +23,6 @@ type TapEvent struct {
 	Expiry     uint32    // Item expiration time
 	Key, Value []byte    // Item key/value
 	Sequence   uint64    // Sequence identifier of document
-	VbNo       uint16    // Vbucket of document
 }
 
 // A Tap feed. Events from the bucket can be read from the channel returned by Events().
