@@ -107,7 +107,7 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 	}
 
 	if reduce && reduceFunction != "" {
-		if err := ReduceViewResult(reduceFunction, &result); err != nil {
+		if err := ReduceViewResult(reduceFunction, params, &result); err != nil {
 			return result, err
 		}
 	}
@@ -117,23 +117,87 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 	return result, nil
 }
 
-func ReduceViewResult(reduceFunction string, result *ViewResult) error {
+func ReduceViewResult(reduceFunction string, params map[string]interface{}, result *ViewResult) error {
+	reduceFun, compileErr := ReduceFunc(reduceFunction)
+	if compileErr != nil {
+		return compileErr
+	}
+	groupLevel := 0
+	if params["group"] != nil && params["group"].(bool) == true {
+		groupLevel = -1
+	} else if params["group_level"] != nil {
+		groupLevel = int(params["group_level"].(uint64))
+	}
+	if groupLevel != 0 {
+		var collator JSONCollator
+		key := result.Rows[0].Key
+		if groupLevel != -1 {
+			// don't try to cast key as a slice if group=true
+			key = keyPrefix(groupLevel, key)
+		}
+		inRows := []*ViewRow{}
+		outRows := []*ViewRow{}
+		for _, row := range result.Rows {
+			inKey := row.Key
+			if groupLevel != -1 {
+				// don't try to cast key as a slice if group=true
+				inKey = keyPrefix(groupLevel, inKey)
+			}
+			collated := collator.Collate(inKey, key)
+			if collated == 0 {
+				inRows = append(inRows, row)
+			} else {
+				outRow, outErr := reduceFun(inRows)
+				if outErr != nil {
+					return outErr
+				}
+				outRow.Key = key
+				outRows = append(outRows, outRow)
+				// reset for next key
+				inRows = []*ViewRow{row}
+				key = inKey
+			}
+		}
+		// do last key
+		outRow, outErr := reduceFun(inRows)
+		if outErr != nil {
+			return outErr
+		}
+		outRow.Key = key
+		result.Rows = append(outRows, outRow)
+	} else {
+		row, err := reduceFun(result.Rows)
+		if err != nil {
+			return err
+		}
+		result.Rows = []*ViewRow{row}
+	}
+	return nil
+}
+
+func keyPrefix(groupLevel int, key interface{}) []interface{} {
+	return key.([]interface{})[0:groupLevel]
+}
+
+func ReduceFunc(reduceFunction string) (func([]*ViewRow) (*ViewRow, error), error) {
 	switch reduceFunction {
 	case "_count":
-		result.Rows = []*ViewRow{{Value: float64(len(result.Rows))}}
-		return nil
+		return func(rows []*ViewRow) (*ViewRow, error) {
+			return &ViewRow{Value: float64(len(rows))}, nil
+		}, nil
 	case "_sum":
-		total := float64(0)
-		for _, row := range result.Rows {
-			// This could theoretically know how to unwrap our [channels, value]
-			// design_doc emit wrapper, but even so reduce would remain admin only.
-			total += collationToFloat64(row.Value)
-		}
-		result.Rows = []*ViewRow{{Value: total}}
-		return nil
+		return func(rows []*ViewRow) (*ViewRow, error) {
+			total := float64(0)
+			for _, row := range rows {
+				// This could theoretically know how to unwrap our [channels, value]
+				// design_doc emit wrapper, but even so reduce would remain admin only.
+				total += collationToFloat64(row.Value)
+			}
+			return &ViewRow{Value: total}, nil
+		}, nil
 	default:
 		// TODO: Implement other reduce functions!
-		return fmt.Errorf("Sgbucket only supports _count reduce function")
+		return nil, fmt.Errorf("Sgbucket only supports _count and _sum reduce functions")
 	}
 }
 
