@@ -36,7 +36,10 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 
 	if params != nil {
 		includeDocs, _ = params["include_docs"].(bool)
-		limit, _ = params["limit"].(int)
+		plimit, ok := params["limit"].(uint64)
+		if ok {
+			limit = int(plimit)
+		}
 		reverse, _ = params["reverse"].(bool)
 		if reduceParam, found := params["reduce"].(bool); found {
 			reduce = reduceParam
