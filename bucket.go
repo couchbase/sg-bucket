@@ -30,6 +30,7 @@ type Bucket interface {
 	Delete(k string) error
 	Write(k string, flags int, exp int, v interface{}, opt WriteOptions) error
 	WriteCas(k string, flags int, exp int, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
+	SetBulk(entries []*BulkSetEntry) (err error)
 	Update(k string, exp int, callback UpdateFunc) error
 	WriteUpdate(k string, exp int, callback WriteUpdateFunc) error
 	Incr(k string, amt, def uint64, exp int) (uint64, error)
@@ -85,6 +86,13 @@ type MissingError struct {
 
 func (err MissingError) Error() string {
 	return fmt.Sprintf("key %q missing", err.Key)
+}
+
+type BulkSetEntry struct {
+	Key   string
+	Value interface{}
+	Cas   uint64
+	Error error
 }
 
 // Error returned from Write with AddOnly flag, when key already exists in the bucket.
