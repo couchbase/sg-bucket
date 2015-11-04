@@ -14,6 +14,8 @@ import (
 	"fmt"
 )
 
+type BucketNotifyFn func(bucket string, err error)
+
 // Abstract storage interface based on Bucket from the go-couchbase package.
 // A Bucket is a key-value store with a map/reduce query interface, as found in Couchbase Server 2.
 type Bucket interface {
@@ -39,7 +41,7 @@ type Bucket interface {
 	DeleteDDoc(docname string) error
 	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
 	ViewCustom(ddoc, name string, params map[string]interface{}, vres interface{}) error
-	StartTapFeed(args TapArguments) (TapFeed, error)
+	StartTapFeed(args TapArguments, notify BucketNotifyFn) (TapFeed, error)
 	Close()
 	Dump()
 	VBHash(docID string) uint32
