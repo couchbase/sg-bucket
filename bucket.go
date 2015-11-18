@@ -41,7 +41,7 @@ type Bucket interface {
 	DeleteDDoc(docname string) error
 	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
 	ViewCustom(ddoc, name string, params map[string]interface{}, vres interface{}) error
-	StartTapFeed(args TapArguments, notify BucketNotifyFn) (TapFeed, error)
+	StartTapFeed(args TapArguments) (TapFeed, error)
 	Close()
 	Dump()
 	VBHash(docID string) uint32

@@ -39,6 +39,7 @@ type TapArguments struct {
 	Backfill uint64 // Timestamp of oldest item to send. Use TapNoBackfill to suppress all past items.
 	Dump     bool   // If set, server will disconnect after sending existing items.
 	KeysOnly bool   // If true, client doesn't want values so server shouldn't send them.
+	Notify 	 BucketNotifyFn //Callback function to send notifications about lost Tap Feed
 }
 
 // Value for TapArguments.Backfill denoting that no past events at all should be sent.
