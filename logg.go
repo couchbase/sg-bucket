@@ -1,9 +1,13 @@
 package sgbucket
 
-import "log"
+import (
+	"log"
+	"sync/atomic"
+)
 
 func logg(fmt string, args ...interface{}) {
-	if Logging {
+	loggingEnabled := atomic.LoadUint32(&Logging)
+	if loggingEnabled > 0 {
 		log.Printf("SG-Bucket: "+fmt, args...)
 	}
 }
