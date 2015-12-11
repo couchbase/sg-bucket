@@ -14,6 +14,8 @@ import (
 	"fmt"
 )
 
+type BucketNotifyFn func(bucket string, err error)
+
 // Abstract storage interface based on Bucket from the go-couchbase package.
 // A Bucket is a key-value store with a map/reduce query interface, as found in Couchbase Server 2.
 type Bucket interface {
@@ -117,6 +119,3 @@ type UpdateFunc func(current []byte) (updated []byte, err error)
 
 type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, err error)
 
-// Set this to true to enable logging
-
-var Logging bool
