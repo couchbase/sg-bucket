@@ -119,5 +119,3 @@ type UpdateFunc func(current []byte) (updated []byte, err error)
 
 type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, err error)
 
-// Set this to true to enable logging, 0 == false, >0 == true
-var Logging uint32 = 0
