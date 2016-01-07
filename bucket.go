@@ -34,7 +34,7 @@ type Bucket interface {
 	WriteCas(k string, flags int, exp int, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 	SetBulk(entries []*BulkSetEntry) (err error)
 	Update(k string, exp int, callback UpdateFunc) error
-	WriteUpdate(k string, exp int, callback WriteUpdateFunc) error
+	WriteUpdate(k string, exp int, callback WriteUpdateFunc) ([]byte, error)
 	Incr(k string, amt, def uint64, exp int) (uint64, error)
 	GetDDoc(docname string, into interface{}) error
 	PutDDoc(docname string, value interface{}) error
@@ -117,5 +117,5 @@ func (ve ViewError) Error() string {
 
 type UpdateFunc func(current []byte) (updated []byte, err error)
 
-type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, err error)
+type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, oldBody []byte, err error)
 
