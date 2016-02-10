@@ -12,7 +12,7 @@ package sgbucket
 import (
 	"fmt"
 
-	"github.com/robertkrimen/otto"
+	"github.com/couchbaselabs/otto"
 )
 
 const kTaskCacheSize = 4
