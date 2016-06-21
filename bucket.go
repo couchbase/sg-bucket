@@ -42,6 +42,7 @@ type Bucket interface {
 	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
 	ViewCustom(ddoc, name string, params map[string]interface{}, vres interface{}) error
 	StartTapFeed(args TapArguments) (TapFeed, error)
+	Refresh() error
 	Close()
 	Dump()
 	VBHash(docID string) uint32
