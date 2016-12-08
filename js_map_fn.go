@@ -86,5 +86,12 @@ func (mapper *JSMapFunction) CallFunction(doc string, docid string) ([]*ViewRow,
 
 // Returns a Couchbase-compatible 'meta' object, given a document ID
 func MakeMeta(docid string) map[string]interface{} {
-	return map[string]interface{}{"id": docid}
+	// TODO:
+	// need to get access access to get doc
+	// change CallFunction
+	return map[string]interface{}{
+		"id":  docid,
+		"vb":  vb,
+		"seq": seq,
+	}
 }
