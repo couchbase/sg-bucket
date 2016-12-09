@@ -88,8 +88,8 @@ func (mapper *JSMapFunction) CallFunction(doc string, docid string, vbNo Vbucket
 func MakeMeta(docid string, vbNo VbucketNo, vbSeq VbucketSeq) map[string]interface{} {
 	return map[string]interface{}{
 		"id":  docid,
-		"vb":  vbNo,
-		"seq": vbSeq,
+		"vb":  uint32(vbNo),  // convert back to well known type
+		"seq": uint64(vbSeq), // ditto
 	}
 
 }
