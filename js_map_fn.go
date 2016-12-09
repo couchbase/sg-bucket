@@ -72,8 +72,8 @@ func NewJSMapFunction(fnSource string) *JSMapFunction {
 }
 
 // Calls a jsMapTask.
-func (mapper *JSMapFunction) CallFunction(doc string, docid string) ([]*ViewRow, error) {
-	result1, err := mapper.Call(JSONString(doc), MakeMeta(docid))
+func (mapper *JSMapFunction) CallFunction(doc string, docid string, vbNo VbucketNo, vbSeq VbucketSeq) ([]*ViewRow, error) {
+	result1, err := mapper.Call(JSONString(doc), MakeMeta(docid, vbNo, vbSeq))
 	if err != nil {
 		return nil, err
 	}
@@ -85,13 +85,11 @@ func (mapper *JSMapFunction) CallFunction(doc string, docid string) ([]*ViewRow,
 }
 
 // Returns a Couchbase-compatible 'meta' object, given a document ID
-func MakeMeta(docid string) map[string]interface{} {
-	// TODO:
-	// need to get access access to get doc
-	// change CallFunction
+func MakeMeta(docid string, vbNo VbucketNo, vbSeq VbucketSeq) map[string]interface{} {
 	return map[string]interface{}{
 		"id":  docid,
-		"vb":  vb,
-		"seq": seq,
+		"vb":  vbNo,
+		"seq": vbSeq,
 	}
+
 }
