@@ -72,7 +72,7 @@ func NewJSMapFunction(fnSource string) *JSMapFunction {
 }
 
 // Calls a jsMapTask.
-func (mapper *JSMapFunction) CallFunction(doc string, docid string, vbNo VbucketNo, vbSeq VbucketSeq) ([]*ViewRow, error) {
+func (mapper *JSMapFunction) CallFunction(doc string, docid string, vbNo uint32, vbSeq uint64) ([]*ViewRow, error) {
 	result1, err := mapper.Call(JSONString(doc), MakeMeta(docid, vbNo, vbSeq))
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (mapper *JSMapFunction) CallFunction(doc string, docid string, vbNo Vbucket
 }
 
 // Returns a Couchbase-compatible 'meta' object, given a document ID
-func MakeMeta(docid string, vbNo VbucketNo, vbSeq VbucketSeq) map[string]interface{} {
+func MakeMeta(docid string, vbNo uint32, vbSeq uint64) map[string]interface{} {
 	return map[string]interface{}{
 		"id":  docid,
 		"vb":  uint32(vbNo),  // convert back to well known type

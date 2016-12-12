@@ -187,11 +187,11 @@ var crc32tab = []uint32{
 	0xb3667a2e, 0xc4614ab8, 0x5d681b02, 0x2a6f2b94,
 	0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d}
 
-func VBHash(key string, numVb uint16) VbucketNo {
+func VBHash(key string, numVb uint16) uint32 {
 	crc := uint32(0xffffffff)
 	for x := 0; x < len(key); x++ {
 		crc = (crc >> 8) ^ crc32tab[(uint64(crc)^uint64(key[x]))&0xff]
 	}
 	vbNo := ((^crc) >> 16) & 0x7fff & (uint32(numVb) - 1)
-	return VbucketNo(vbNo)
+	return vbNo
 }

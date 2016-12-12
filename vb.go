@@ -5,35 +5,32 @@ import (
 	"sync"
 )
 
-type VbucketNo uint32
-type VbucketSeq uint64
-
 // Per-vbucket sequence counter
 type VbucketSeqCounter interface {
-	Incr(vbNo VbucketNo) (VbucketSeq, error)
-	Get(vbNo VbucketNo) (VbucketSeq, error)
+	Incr(vbNo uint32) (uint64, error)
+	Get(vbNo uint32) (uint64, error)
 }
 
 type mapVbucketSeqCounter struct {
-	data        map[VbucketNo]VbucketSeq
+	data        map[uint32]uint64
 	mu          *sync.Mutex
 	numVbuckets int
 }
 
 func NewMapVbucketSeqCounter(numVbuckets int) *mapVbucketSeqCounter {
 	return &mapVbucketSeqCounter{
-		data:        map[VbucketNo]VbucketSeq{},
+		data:        map[uint32]uint64{},
 		mu:          &sync.Mutex{},
 		numVbuckets: numVbuckets,
 	}
 }
 
-func (msq mapVbucketSeqCounter) Incr(vbNo VbucketNo) (VbucketSeq, error) {
+func (msq mapVbucketSeqCounter) Incr(vbNo uint32) (uint64, error) {
 	msq.mu.Lock()
 	defer msq.mu.Unlock()
 
-	if vbNo > VbucketNo(msq.numVbuckets-1) {
-		return VbucketSeq(0), fmt.Errorf("vbNo %v out of range (0-%v)", vbNo, msq.numVbuckets)
+	if vbNo > msq.highestExpectedVbucketNo() {
+		return 0, fmt.Errorf("vbNo %v higher than max expected: %v", vbNo, msq.highestExpectedVbucketNo())
 	}
 
 	curSeq := msq.data[vbNo]
@@ -42,13 +39,17 @@ func (msq mapVbucketSeqCounter) Incr(vbNo VbucketNo) (VbucketSeq, error) {
 	return newSeq, nil
 }
 
-func (msq mapVbucketSeqCounter) Get(vbNo VbucketNo) (VbucketSeq, error) {
+func (msq mapVbucketSeqCounter) Get(vbNo uint32) (uint64, error) {
 	msq.mu.Lock()
 	defer msq.mu.Unlock()
 
-	if vbNo > VbucketNo(msq.numVbuckets-1) {
-		return VbucketSeq(0), fmt.Errorf("vbNo %v out of range (0-%v)", vbNo, msq.numVbuckets)
+	if vbNo > msq.highestExpectedVbucketNo() {
+		return 0, fmt.Errorf("vbNo %v higher than max expected: %v", vbNo, msq.highestExpectedVbucketNo())
 	}
 
 	return msq.data[vbNo], nil
+}
+
+func (msq mapVbucketSeqCounter) highestExpectedVbucketNo() uint32 {
+	return uint32(msq.numVbuckets - 1)
 }
