@@ -19,7 +19,7 @@ import (
 // Just verify that the calls to the emit() fn show up in the output.
 func TestEmitFunction(t *testing.T) {
 	mapper := NewJSMapFunction(`function(doc) {emit("key", "value"); emit("k2","v2")}`)
-	rows, err := mapper.CallFunction(`{}`, "doc1")
+	rows, err := mapper.CallFunction(`{}`, "doc1", 0, 0)
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equals(t, len(rows), 2)
 	assert.DeepEquals(t, rows[0], &ViewRow{ID: "doc1", Key: "key", Value: "value"})
@@ -28,7 +28,7 @@ func TestEmitFunction(t *testing.T) {
 
 func testMap(t *testing.T, mapFn string, doc string) []*ViewRow {
 	mapper := NewJSMapFunction(mapFn)
-	rows, err := mapper.CallFunction(doc, "doc1")
+	rows, err := mapper.CallFunction(doc, "doc1", 0, 0)
 	assertNoError(t, err, fmt.Sprintf("CallFunction failed on %s", doc))
 	return rows
 }
@@ -62,7 +62,7 @@ func TestKeyTypes(t *testing.T) {
 // Empty/no-op map fn
 func TestEmptyJSMapFunction(t *testing.T) {
 	mapper := NewJSMapFunction(`function(doc) {}`)
-	rows, err := mapper.CallFunction(`{"key": "k", "value": "v"}`, "doc1")
+	rows, err := mapper.CallFunction(`{"key": "k", "value": "v"}`, "doc1", 0, 0)
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equals(t, len(rows), 0)
 }
@@ -70,7 +70,7 @@ func TestEmptyJSMapFunction(t *testing.T) {
 // Test meta object
 func TestMeta(t *testing.T) {
 	mapper := NewJSMapFunction(`function(doc,meta) {if (meta.id!="doc1") throw("bad ID");}`)
-	rows, err := mapper.CallFunction(`{"key": "k", "value": "v"}`, "doc1")
+	rows, err := mapper.CallFunction(`{"key": "k", "value": "v"}`, "doc1", 0, 0)
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equals(t, len(rows), 0)
 }
@@ -78,7 +78,7 @@ func TestMeta(t *testing.T) {
 // Test the public API
 func TestPublicJSMapFunction(t *testing.T) {
 	mapper := NewJSMapFunction(`function(doc) {emit(doc.key, doc.value);}`)
-	rows, err := mapper.CallFunction(`{"key": "k", "value": "v"}`, "doc1")
+	rows, err := mapper.CallFunction(`{"key": "k", "value": "v"}`, "doc1", 0, 0)
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equals(t, len(rows), 1)
 	assert.DeepEquals(t, rows[0], &ViewRow{ID: "doc1", Key: "k", Value: "v"})
