@@ -83,7 +83,7 @@ func collationType(value interface{}) token {
 			return kFalse
 		}
 		return kTrue
-	case float64, uint64, json.Number:
+	case float64, uint64, uint16, json.Number:
 		return kNumber
 	case string:
 		return kString
@@ -106,6 +106,9 @@ func (c *JSONCollator) compareStrings(s1, s2 string) int {
 
 func collationToFloat64(value interface{}) float64 {
 	if i, ok := value.(uint64); ok {
+		return float64(i)
+	}
+	if i, ok := value.(uint16); ok {
 		return float64(i)
 	}
 	if n, ok := value.(float64); ok {
