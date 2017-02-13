@@ -1,4 +1,4 @@
-[![Build Status](https://drone.io/github.com/couchbase/sg-bucket/status.png)](https://drone.io/github.com/couchbase/sg-bucket/latest)  [![GoDoc](https://godoc.org/github.com/couchbase/sg-bucket?status.png)](https://godoc.org/github.com/couchbase/sg-bucket)
+[![GoDoc](https://godoc.org/github.com/couchbase/sg-bucket?status.png)](https://godoc.org/github.com/couchbase/sg-bucket)
 
 # sg-bucket
 
