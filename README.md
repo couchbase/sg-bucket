@@ -1,4 +1,5 @@
-[![GoDoc](https://godoc.org/github.com/couchbase/sg-bucket?status.png)](https://godoc.org/github.com/couchbase/sg-bucket)
+[![GoDoc](https://godoc.org/github.com/couchbase/sg-bucket?status.png)](https://godoc.org/github.com/couchbase/sg-bucket) [![Sourcegraph](https://sourcegraph.com/github.com/couchbase/sg-bucket/-/badge.svg)](https://sourcegraph.com/github.com/couchbase/sg-bucket?badge)
+
 
 # sg-bucket
 
