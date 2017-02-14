@@ -1,4 +1,4 @@
-[![GoDoc](https://godoc.org/github.com/couchbase/sg-bucket?status.png)](https://godoc.org/github.com/couchbase/sg-bucket) [![Sourcegraph](https://sourcegraph.com/github.com/couchbase/sg-bucket/-/badge.svg)](https://sourcegraph.com/github.com/couchbase/sg-bucket?badge)
+[![GoDoc](https://godoc.org/github.com/couchbase/sg-bucket?status.png)](https://godoc.org/github.com/couchbase/sg-bucket) [![Sourcegraph](https://sourcegraph.com/github.com/couchbase/sg-bucket/-/badge.svg)](https://sourcegraph.com/github.com/couchbase/sg-bucket?badge)  [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 
 # sg-bucket
