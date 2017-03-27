@@ -14,6 +14,9 @@ import (
 	"fmt"
 )
 
+// NOTE: not a tap event notification callback
+// When go-couchbase detects that the tap/dcp feed has been disconnected, will call this back.
+// TODO: rename to FeedStateNotify?
 type BucketNotifyFn func(bucket string, err error)
 
 // Abstract storage interface based on Bucket from the go-couchbase package.
