@@ -49,6 +49,7 @@ type Bucket interface {
 	Close()
 	Dump()
 	VBHash(docID string) uint32
+	GetMaxVbno() (uint16, error)
 }
 
 type DeleteableBucket interface {
