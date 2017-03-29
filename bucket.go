@@ -39,6 +39,9 @@ type Bucket interface {
 	Update(k string, exp int, callback UpdateFunc) error
 	WriteUpdate(k string, exp int, callback WriteUpdateFunc) error
 	Incr(k string, amt, def uint64, exp int) (uint64, error)
+	WriteCasWithXattr(k string, xattr string, flags int, exp int, cas uint64, v interface{}, xv interface{}, opt WriteOptions) (casOut uint64, err error)
+	GetWithXattr(k string, xattr string, rv interface{}, xv interface{}) (cas uint64, err error)
+	DeleteWithXattr(k string, xattr string) error
 	GetDDoc(docname string, into interface{}) error
 	PutDDoc(docname string, value interface{}) error
 	DeleteDDoc(docname string) error
