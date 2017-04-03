@@ -50,6 +50,8 @@ type Bucket interface {
 	Dump()
 	VBHash(docID string) uint32
 	GetMaxVbno() (uint16, error)
+	CouchbaseServerVersion() (major uint64, minor uint64, micro string, err error)
+
 }
 
 type DeleteableBucket interface {
