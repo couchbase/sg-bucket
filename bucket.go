@@ -130,7 +130,7 @@ type UpdateFunc func(current []byte) (updated []byte, err error)
 
 type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, err error)
 
-type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte) (updatedDoc []byte, updatedXattr []byte, err error)
+type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, err error)
 
 // Cloned from go-couchbase, modified for use without a live bucket instance (takes the number of vbuckets as a parameter)
 var crc32tab = []uint32{

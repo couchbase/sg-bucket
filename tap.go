@@ -25,6 +25,7 @@ type TapEvent struct {
 	Sequence   uint64    // Sequence identifier of document
 	VbNo       uint16    // Vbucket of document
 	DataType   uint8     // Datatype of document
+	Cas        uint64    // Cas of document
 }
 
 // A Tap feed. Events from the bucket can be read from the channel returned by Events().
