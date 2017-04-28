@@ -38,7 +38,7 @@ type Bucket interface {
 	WriteCas(k string, flags int, exp int, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 	SetBulk(entries []*BulkSetEntry) (err error)
 	Update(k string, exp int, callback UpdateFunc) error
-	WriteUpdate(k string, exp int, callback WriteUpdateFunc) error
+	WriteUpdate(k string, exp int, callback WriteUpdateFunc) ([]byte, error)
 	Incr(k string, amt, def uint64, exp int) (uint64, error)
 	WriteCasWithXattr(k string, xattrKey string, exp int, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
 	GetWithXattr(k string, xattrKey string, rv interface{}, xv interface{}) (cas uint64, err error)
@@ -129,7 +129,7 @@ func (ve ViewError) Error() string {
 
 type UpdateFunc func(current []byte) (updated []byte, err error)
 
-type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, err error)
+type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, oldBody []byte, err error)
 
 // Callback used by WriteUpdateWithXattr, used to transform the doc in preparation for update
 // Input parameters:
