@@ -33,6 +33,7 @@ type Bucket interface {
 	Set(k string, exp int, v interface{}) error
 	SetRaw(k string, exp int, v []byte) error
 	Delete(k string) error
+	Remove(k string, cas uint64) (casOut uint64, err error)
 	Write(k string, flags int, exp int, v interface{}, opt WriteOptions) error
 	WriteCas(k string, flags int, exp int, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 	SetBulk(entries []*BulkSetEntry) (err error)
@@ -130,7 +131,7 @@ type UpdateFunc func(current []byte) (updated []byte, err error)
 
 type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, err error)
 
-type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, err error)
+type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deletedDoc bool, err error)
 
 // Cloned from go-couchbase, modified for use without a live bucket instance (takes the number of vbuckets as a parameter)
 var crc32tab = []uint32{
