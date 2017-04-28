@@ -14,7 +14,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/robertkrimen/otto"
+	"github.com/couchbaselabs/otto"
 )
 
 // Alternate type to wrap a Go string in to mark that Call() should interpret it as JSON.
