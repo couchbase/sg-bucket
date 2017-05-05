@@ -52,6 +52,7 @@ type Bucket interface {
 
 	// TODO: Change to StartMutationFeed
 	StartTapFeed(args TapArguments) (TapFeed, error)
+	StartDCPFeed(args TapArguments, callback FeedEventCallbackFunc) error
 
 	// Goes out to the bucket and gets the high sequence number for all vbuckets and returns
 	// a map of UUIDS and a map of high sequence numbers (map from vbno -> seq)

@@ -18,14 +18,15 @@ const (
 
 // A TAP notification of an operation on the server.
 type TapEvent struct {
-	Opcode     TapOpcode // Type of event
-	Flags      uint32    // Item flags
-	Expiry     uint32    // Item expiration time
-	Key, Value []byte    // Item key/value
-	Sequence   uint64    // Sequence identifier of document
-	VbNo       uint16    // Vbucket of document
-	DataType   uint8     // Datatype of document
-	Cas        uint64    // Cas of document
+	Opcode      TapOpcode // Type of event
+	Flags       uint32    // Item flags
+	Expiry      uint32    // Item expiration time
+	Key, Value  []byte    // Item key/value
+	Sequence    uint64    // Sequence identifier of document
+	VbNo        uint16    // Vbucket of document
+	DataType    uint8     // Datatype of document
+	Cas         uint64    // Cas of document
+	Synchronous bool      // When true, requires that event is processed synchronously
 }
 
 // A Tap feed. Events from the bucket can be read from the channel returned by Events().
@@ -46,3 +47,5 @@ type TapArguments struct {
 
 // Value for TapArguments.Backfill denoting that no past events at all should be sent.
 const TapNoBackfill = math.MaxUint64
+
+type FeedEventCallbackFunc func(event TapEvent) error
