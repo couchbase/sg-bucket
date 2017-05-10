@@ -40,10 +40,19 @@ type Bucket interface {
 	Update(k string, exp int, callback UpdateFunc) error
 	WriteUpdate(k string, exp int, callback WriteUpdateFunc) error
 	Incr(k string, amt, def uint64, exp int) (uint64, error)
+
+	// CAS-safe write of a document and it's associated named xattr
 	WriteCasWithXattr(k string, xattrKey string, exp int, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
+
+	//Retrieve a document and it's associated named xattr
 	GetWithXattr(k string, xattrKey string, rv interface{}, xv interface{}) (cas uint64, err error)
+
+	// Delete a document and it's associated named xattr.  Couchbase server will preserve system xattrs as part of the (CBS) tombstone when a document is deleted.
+	// To remove the system xattr as well, an explicit subdoc delete operation is required.
 	DeleteWithXattr(k string, xattrKey string) error
+
 	WriteUpdateWithXattr(k string, xattrKey string, exp int, callback WriteUpdateWithXattrFunc) error
+
 	GetDDoc(docname string, into interface{}) error
 	PutDDoc(docname string, value interface{}) error
 	DeleteDDoc(docname string) error
