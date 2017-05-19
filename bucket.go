@@ -49,7 +49,14 @@ type Bucket interface {
 	DeleteDDoc(docname string) error
 	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
 	ViewCustom(ddoc, name string, params map[string]interface{}, vres interface{}) error
+
+	// TODO: Change to StartMutationFeed
 	StartTapFeed(args TapArguments) (TapFeed, error)
+
+	// Goes out to the bucket and gets the high sequence number for all vbuckets and returns
+	// a map of UUIDS and a map of high sequence numbers (map from vbno -> seq)
+	GetStatsVbSeqno(maxVbno uint16, useAbsHighSeqNo bool) (uuids map[uint16]uint64, highSeqnos map[uint16]uint64, seqErr error)
+
 	Refresh() error
 	Close()
 	Dump()
