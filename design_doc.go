@@ -17,9 +17,10 @@ type ViewDef struct {
 type ViewMap map[string]ViewDef
 
 type DesignDocOptions struct {
-	LocalSeq      bool `json:"local_seq,omitempty"`
-	IncludeDesign bool `json:"include_design,omitempty"`
-	Raw           bool `json:"raw,omitempty"`
+	LocalSeq               bool `json:"local_seq,omitempty"`
+	IncludeDesign          bool `json:"include_design,omitempty"`
+	Raw                    bool `json:"raw,omitempty"`
+	IndexXattrOnTombstones bool `json:"index_xattr_on_deleted_docs, omitempty"`
 }
 
 // A Couchbase design document, which stores map/reduce function definitions.
