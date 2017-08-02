@@ -50,9 +50,8 @@ type Bucket interface {
 	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
 	ViewCustom(ddoc, name string, params map[string]interface{}, vres interface{}) error
 
-	// TODO: Change to StartMutationFeed
-	StartTapFeed(args TapArguments) (TapFeed, error)
-	StartDCPFeed(args TapArguments, callback FeedEventCallbackFunc) error
+	StartTapFeed(args FeedArguments) (MutationFeed, error)
+	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc) error
 
 	// Goes out to the bucket and gets the high sequence number for all vbuckets and returns
 	// a map of UUIDS and a map of high sequence numbers (map from vbno -> seq)
