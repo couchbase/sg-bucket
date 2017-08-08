@@ -19,6 +19,13 @@ import (
 // TODO: rename to FeedStateNotify?
 type BucketNotifyFn func(bucket string, err error)
 
+// Raw representation of a bucket document - document body and xattr as bytes, along with cas.
+type BucketDocument struct {
+	Body  []byte
+	Xattr []byte
+	Cas   uint64
+}
+
 // Abstract storage interface based on Bucket from the go-couchbase package.
 // A Bucket is a key-value store with a map/reduce query interface, as found in Couchbase Server 2.
 type Bucket interface {
@@ -43,7 +50,7 @@ type Bucket interface {
 	WriteCasWithXattr(k string, xattrKey string, exp int, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
 	GetWithXattr(k string, xattrKey string, rv interface{}, xv interface{}) (cas uint64, err error)
 	DeleteWithXattr(k string, xattrKey string) error
-	WriteUpdateWithXattr(k string, xattrKey string, exp int, previousValue []byte, previousXattr []byte, cas uint64, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
+	WriteUpdateWithXattr(k string, xattrKey string, exp int, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
 	GetDDoc(docname string, into interface{}) error
 	PutDDoc(docname string, value interface{}) error
 	DeleteDDoc(docname string) error
