@@ -33,24 +33,24 @@ type Bucket interface {
 	Get(k string, rv interface{}) (cas uint64, err error)
 	GetRaw(k string) (rv []byte, cas uint64, err error)
 	GetBulkRaw(keys []string) (map[string][]byte, error)
-	GetAndTouchRaw(k string, exp int) (rv []byte, cas uint64, err error)
-	Add(k string, exp int, v interface{}) (added bool, err error)
-	AddRaw(k string, exp int, v []byte) (added bool, err error)
+	GetAndTouchRaw(k string, exp uint32) (rv []byte, cas uint64, err error)
+	Add(k string, exp uint32, v interface{}) (added bool, err error)
+	AddRaw(k string, exp uint32, v []byte) (added bool, err error)
 	Append(k string, data []byte) error
-	Set(k string, exp int, v interface{}) error
-	SetRaw(k string, exp int, v []byte) error
+	Set(k string, exp uint32, v interface{}) error
+	SetRaw(k string, exp uint32, v []byte) error
 	Delete(k string) error
 	Remove(k string, cas uint64) (casOut uint64, err error)
-	Write(k string, flags int, exp int, v interface{}, opt WriteOptions) error
-	WriteCas(k string, flags int, exp int, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
+	Write(k string, flags int, exp uint32, v interface{}, opt WriteOptions) error
+	WriteCas(k string, flags int, exp uint32, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 	SetBulk(entries []*BulkSetEntry) (err error)
-	Update(k string, exp int, callback UpdateFunc) error
-	WriteUpdate(k string, exp int, callback WriteUpdateFunc) error
-	Incr(k string, amt, def uint64, exp int) (uint64, error)
-	WriteCasWithXattr(k string, xattrKey string, exp int, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
+	Update(k string, exp uint32, callback UpdateFunc) error
+	WriteUpdate(k string, exp uint32, callback WriteUpdateFunc) error
+	Incr(k string, amt, def uint64, exp uint32) (uint64, error)
+	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
 	GetWithXattr(k string, xattrKey string, rv interface{}, xv interface{}) (cas uint64, err error)
 	DeleteWithXattr(k string, xattrKey string) error
-	WriteUpdateWithXattr(k string, xattrKey string, exp int, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
+	WriteUpdateWithXattr(k string, xattrKey string, exp uint32, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
 	GetDDoc(docname string, into interface{}) error
 	PutDDoc(docname string, value interface{}) error
 	DeleteDDoc(docname string) error
@@ -141,9 +141,9 @@ func (ve ViewError) Error() string {
 	return fmt.Sprintf("Node: %v, reason: %v", ve.From, ve.Reason)
 }
 
-type UpdateFunc func(current []byte) (updated []byte, err error)
+type UpdateFunc func(current []byte) (updated []byte, expiry *uint32, err error)
 
-type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, err error)
+type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, expiry *uint32, err error)
 
 // Callback used by WriteUpdateWithXattr, used to transform the doc in preparation for update
 // Input parameters:
@@ -152,7 +152,7 @@ type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, err
 //  updatedDoc, updatedXattr	Mutated doc body, xattr body.  Return a nil value to indicate that no update should be performed.
 //  deletedDoc			Flag to indicate that the document body should be deleted
 //  err                         When error is returned, all updates are canceled
-type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deletedDoc bool, err error)
+type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deletedDoc bool, expiry *uint32, err error)
 
 // Cloned from go-couchbase, modified for use without a live bucket instance (takes the number of vbuckets as a parameter)
 var crc32tab = []uint32{
