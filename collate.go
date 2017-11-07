@@ -56,8 +56,15 @@ func (c *JSONCollator) Collate(key1, key2 interface{}) int {
 	case kString:
 		return c.compareStrings(key1.(string), key2.(string))
 	case kArray:
-		array1 := key1.([]interface{})
-		array2 := key2.([]interface{})
+		// Handle the case where a walrus bucket is returning a []float64
+		array1, ok1 := key1.([]interface{})
+		if !ok1 {
+			array1 = ToArrayOfInterface(key1.([]float64))
+		}
+		array2, ok2 := key2.([]interface{})
+		if !ok2 {
+			array2 = ToArrayOfInterface(key2.([]float64))
+		}
 		for i, item1 := range array1 {
 			if i >= len(array2) {
 				return 1
@@ -87,7 +94,7 @@ func collationType(value interface{}) token {
 		return kNumber
 	case string:
 		return kString
-	case []interface{}:
+	case []interface{}, []float64:
 		return kArray
 	case map[string]interface{}:
 		return kObject
@@ -140,4 +147,12 @@ func compareFloats(n1, n2 float64) int {
 		return 1
 	}
 	return 0
+}
+
+func ToArrayOfInterface(arrayOfFloat64 []float64) []interface{} {
+	arrayOfInterface := make([]interface{}, len(arrayOfFloat64))
+	for i, v := range arrayOfFloat64 {
+		arrayOfInterface[i] = v
+	}
+	return arrayOfInterface
 }
