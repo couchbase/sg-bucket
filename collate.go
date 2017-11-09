@@ -59,11 +59,11 @@ func (c *JSONCollator) Collate(key1, key2 interface{}) int {
 		// Handle the case where a walrus bucket is returning a []float64
 		array1, ok1 := key1.([]interface{})
 		if !ok1 {
-			array1 = ToArrayOfInterface(key1.([]float64))
+			array1 = toSliceOfInterface(key1)
 		}
 		array2, ok2 := key2.([]interface{})
 		if !ok2 {
-			array2 = ToArrayOfInterface(key2.([]float64))
+			array2 = toSliceOfInterface(key2)
 		}
 		for i, item1 := range array1 {
 			if i >= len(array2) {
@@ -84,21 +84,24 @@ func collationType(value interface{}) token {
 	if value == nil {
 		return kNull
 	}
-	switch value := value.(type) {
-	case bool:
+
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Bool:
 		if !value {
 			return kFalse
 		}
 		return kTrue
-	case float64, uint64, uint16, json.Number:
+	case reflect.Float64, reflect.Uint64, reflect.Uint16: //json.Number?
 		return kNumber
-	case string:
+	case reflect.String:
 		return kString
-	case []interface{}, []float64:
+	case reflect.Slice:
 		return kArray
-	case map[string]interface{}:
+	case reflect.Map:
 		return kObject
 	}
+
 	panic(fmt.Sprintf("collationType doesn't understand %+v (%T)", value, value))
 }
 
@@ -149,10 +152,20 @@ func compareFloats(n1, n2 float64) int {
 	return 0
 }
 
-func ToArrayOfInterface(arrayOfFloat64 []float64) []interface{} {
-	arrayOfInterface := make([]interface{}, len(arrayOfFloat64))
-	for i, v := range arrayOfFloat64 {
-		arrayOfInterface[i] = v
+func toSliceOfInterface(slice interface{}) []interface{} {
+
+	s := reflect.ValueOf(slice)
+
+	switch s.Kind() {
+	case reflect.Slice:
+		ret := make([]interface{}, s.Len())
+
+		for i, v := range s {
+			ret[i] = v.Interface()
+		}
+
+		return ret
+	default:
+		panic("toSliceOfInterface() given a non-slice type")
 	}
-	return arrayOfInterface
 }
