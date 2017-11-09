@@ -12,6 +12,7 @@ package sgbucket
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
