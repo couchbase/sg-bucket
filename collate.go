@@ -89,7 +89,7 @@ func collationType(value interface{}) token {
 	v := reflect.ValueOf(value)
 	switch v.Kind() {
 	case reflect.Bool:
-		if !value {
+		if !v.Bool() {
 			return kFalse
 		}
 		return kTrue
@@ -161,8 +161,9 @@ func toSliceOfInterface(slice interface{}) []interface{} {
 	case reflect.Slice:
 		ret := make([]interface{}, s.Len())
 
-		for i, v := range s {
-			ret[i] = v.Interface()
+		//Can't range over s
+		for i := 0; i < s.Len(); i++ {
+			ret[i] = s.Index(i).Interface()
 		}
 
 		return ret
