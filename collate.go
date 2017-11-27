@@ -58,14 +58,8 @@ func (c *JSONCollator) Collate(key1, key2 interface{}) int {
 		return c.compareStrings(key1.(string), key2.(string))
 	case kArray:
 		// Handle the case where a walrus bucket is returning a []float64
-		array1, ok1 := key1.([]interface{})
-		if !ok1 {
-			array1 = toSliceOfInterface(key1)
-		}
-		array2, ok2 := key2.([]interface{})
-		if !ok2 {
-			array2 = toSliceOfInterface(key2)
-		}
+		array1 := toSliceOfInterface(key1)
+		array2 := toSliceOfInterface(key2)
 		for i, item1 := range array1 {
 			if i >= len(array2) {
 				return 1
@@ -93,9 +87,14 @@ func collationType(value interface{}) token {
 			return kFalse
 		}
 		return kTrue
-	case reflect.Float64, reflect.Uint64, reflect.Uint16: //json.Number?
+	case reflect.Float64, reflect.Uint64, reflect.Uint16:
 		return kNumber
 	case reflect.String:
+		//json.Number is a string type from the reflect package, need to do a specific type check to identify it
+		switch value.(type) {
+		case json.Number:
+			return kNumber
+		}
 		return kString
 	case reflect.Slice:
 		return kArray
@@ -155,11 +154,16 @@ func compareFloats(n1, n2 float64) int {
 
 func toSliceOfInterface(slice interface{}) []interface{} {
 
+	ret, ok := slice.([]interface{})
+	if ok {
+		return ret
+	}
+
 	s := reflect.ValueOf(slice)
 
 	switch s.Kind() {
 	case reflect.Slice:
-		ret := make([]interface{}, s.Len())
+		ret = make([]interface{}, s.Len())
 
 		//Can't range over s
 		for i := 0; i < s.Len(); i++ {
