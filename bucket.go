@@ -21,9 +21,10 @@ type BucketNotifyFn func(bucket string, err error)
 
 // Raw representation of a bucket document - document body and xattr as bytes, along with cas.
 type BucketDocument struct {
-	Body  []byte
-	Xattr []byte
-	Cas   uint64
+	Body   []byte
+	Xattr  []byte
+	Cas    uint64
+	Expiry uint32 // Item expiration time (UNIX Epoch time)
 }
 
 // Abstract storage interface based on Bucket from the go-couchbase package.
