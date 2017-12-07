@@ -20,7 +20,7 @@ const (
 type FeedEvent struct {
 	Opcode      FeedOpcode // Type of event
 	Flags       uint32     // Item flags
-	Expiry      uint32     // Item expiration time
+	Expiry      uint32     // Item expiration time (UNIX Epoch time)
 	Key, Value  []byte     // Item key/value
 	Sequence    uint64     // Sequence identifier of document
 	VbNo        uint16     // Vbucket of document

@@ -21,13 +21,15 @@ type BucketNotifyFn func(bucket string, err error)
 
 // Raw representation of a bucket document - document body and xattr as bytes, along with cas.
 type BucketDocument struct {
-	Body  []byte
-	Xattr []byte
-	Cas   uint64
+	Body   []byte
+	Xattr  []byte
+	Cas    uint64
+	Expiry uint32 // Item expiration time (UNIX Epoch time)
 }
 
 // Abstract storage interface based on Bucket from the go-couchbase package.
 // A Bucket is a key-value store with a map/reduce query interface, as found in Couchbase Server 2.
+// The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
 type Bucket interface {
 	GetName() string
 	Get(k string, rv interface{}) (cas uint64, err error)
