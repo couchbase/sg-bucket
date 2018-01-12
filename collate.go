@@ -12,6 +12,7 @@ package sgbucket
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
@@ -56,8 +57,9 @@ func (c *JSONCollator) Collate(key1, key2 interface{}) int {
 	case kString:
 		return c.compareStrings(key1.(string), key2.(string))
 	case kArray:
-		array1 := key1.([]interface{})
-		array2 := key2.([]interface{})
+		// Handle the case where a walrus bucket is returning a []float64
+		array1 := toSliceOfInterface(key1)
+		array2 := toSliceOfInterface(key2)
 		for i, item1 := range array1 {
 			if i >= len(array2) {
 				return 1
@@ -77,21 +79,29 @@ func collationType(value interface{}) token {
 	if value == nil {
 		return kNull
 	}
-	switch value := value.(type) {
-	case bool:
-		if !value {
+
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Bool:
+		if !v.Bool() {
 			return kFalse
 		}
 		return kTrue
-	case float64, uint64, uint16, json.Number:
+	case reflect.Float64, reflect.Uint64, reflect.Uint16:
 		return kNumber
-	case string:
+	case reflect.String:
+		//json.Number is a string type from the reflect package, need to do a specific type check to identify it
+		switch value.(type) {
+		case json.Number:
+			return kNumber
+		}
 		return kString
-	case []interface{}:
+	case reflect.Slice:
 		return kArray
-	case map[string]interface{}:
+	case reflect.Map:
 		return kObject
 	}
+
 	panic(fmt.Sprintf("collationType doesn't understand %+v (%T)", value, value))
 }
 
@@ -140,4 +150,28 @@ func compareFloats(n1, n2 float64) int {
 		return 1
 	}
 	return 0
+}
+
+func toSliceOfInterface(slice interface{}) []interface{} {
+
+	ret, ok := slice.([]interface{})
+	if ok {
+		return ret
+	}
+
+	s := reflect.ValueOf(slice)
+
+	switch s.Kind() {
+	case reflect.Slice:
+		ret = make([]interface{}, s.Len())
+
+		//Can't range over s
+		for i := 0; i < s.Len(); i++ {
+			ret[i] = s.Index(i).Interface()
+		}
+
+		return ret
+	default:
+		panic("toSliceOfInterface() given a non-slice type")
+	}
 }
