@@ -19,6 +19,9 @@ import (
 // TODO: rename to FeedStateNotify?
 type BucketNotifyFn func(bucket string, err error)
 
+// A function signature for functions used in test callback functions.
+type TestCallbackFn func()
+
 // Raw representation of a bucket document - document body and xattr as bytes, along with cas.
 type BucketDocument struct {
 	Body   []byte
@@ -72,6 +75,11 @@ type Bucket interface {
 	// Goes out to the bucket and gets the high sequence number for all vbuckets and returns
 	// a map of UUIDS and a map of high sequence numbers (map from vbno -> seq)
 	GetStatsVbSeqno(maxVbno uint16, useAbsHighSeqNo bool) (uuids map[uint16]uint64, highSeqnos map[uint16]uint64, seqErr error)
+
+	// Getter and setter for the test callback function associated with this bucket, if any.  Useful for injecting
+	// behavior "mid-invocation", such as triggering CAS retries by mutating the document during a read/write sequence.
+	SetTestCallback(fn TestCallbackFn)
+	GetTestCallback() TestCallbackFn
 
 	Refresh() error
 	Close()
