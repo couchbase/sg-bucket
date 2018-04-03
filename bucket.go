@@ -58,7 +58,7 @@ type Bucket interface {
 	DeleteDDoc(docname string) error
 	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
 	ViewCustom(ddoc, name string, params map[string]interface{}, vres interface{}) error
-
+	ViewQuery(ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
 	StartTapFeed(args FeedArguments) (MutationFeed, error)
 	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc) error
 
@@ -73,6 +73,13 @@ type Bucket interface {
 	GetMaxVbno() (uint16, error)
 	CouchbaseServerVersion() (major uint64, minor uint64, micro string, err error)
 	UUID() (string, error)
+}
+
+type QueryResultIterator interface {
+	One(valuePtr interface{}) error
+	Next(valuePtr interface{}) bool
+	NextBytes() []byte
+	Close() error
 }
 
 type DeleteableBucket interface {
@@ -97,6 +104,8 @@ type ViewResult struct {
 	Rows      ViewRows    `json:"rows"`
 	Errors    []ViewError `json:"errors,omitempty"`
 	Collator  JSONCollator
+	iterIndex int   // Used to support iterator interface
+	iterErr   error // Error encountered during iteration
 }
 
 type ViewRows []*ViewRow
