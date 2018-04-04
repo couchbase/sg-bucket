@@ -49,8 +49,21 @@ type Bucket interface {
 	Write(k string, flags int, exp uint32, v interface{}, opt WriteOptions) error
 	WriteCas(k string, flags int, exp uint32, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 	SetBulk(entries []*BulkSetEntry) (err error)
+
+	// This will update the doc in a way that can handle CAS failures and retry them.  An UpdateFunc is
+	// passed which is a transformation that takes the existing doc and returns the new content.  Depending on
+	// the latest doc content, the UpdateFunc may cancel (abort) the update.
+	// Deprecated!  Use WriteUpdate() instead.
 	Update(k string, exp uint32, callback UpdateFunc) error
+
+	// Identical to WriteUpdate(), but this will call GetAndTouch() and update the doc expiry value.
+	// This is useful when you need to update the expiry every time WriteUpdate() is called, as in the user TTL case.
+	WriteUpdateAndTouch(k string, exp uint32, callback WriteUpdateFunc) error
+
+	// Similar to Update(), but the WriteUpdateFunc has additional functionality to allow callbacks to further
+	// customize behavior.  Calls Update() should be replaced with calls to WriteUpdate(), and Update() should be removed.
 	WriteUpdate(k string, exp uint32, callback WriteUpdateFunc) error
+
 	Incr(k string, amt, def uint64, exp uint32) (uint64, error)
 	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
 	GetWithXattr(k string, xattrKey string, rv interface{}, xv interface{}) (cas uint64, err error)
