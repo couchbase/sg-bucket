@@ -56,8 +56,15 @@ type Bucket interface {
 	GetDDoc(docname string, into interface{}) error
 	PutDDoc(docname string, value interface{}) error
 	DeleteDDoc(docname string) error
+
+	// Issue a view query, and return the results as a ViewResult
 	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
+
+	// Issue a view query, and unmarshal the entire view response into the provided vres
 	ViewCustom(ddoc, name string, params map[string]interface{}, vres interface{}) error
+
+	// Issue a view query, and return an iterator supporting row-level unmarshalling of the results.
+	ViewQuery(ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
 
 	StartTapFeed(args FeedArguments) (MutationFeed, error)
 	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc) error
@@ -73,6 +80,14 @@ type Bucket interface {
 	GetMaxVbno() (uint16, error)
 	CouchbaseServerVersion() (major uint64, minor uint64, micro string, err error)
 	UUID() (string, error)
+}
+
+// Common query iterator interface,  implemented by sgbucket.ViewResult, gocb.ViewResults, and gocb.QueryResults
+type QueryResultIterator interface {
+	One(valuePtr interface{}) error // Unmarshal a single result row into valuePtr, and then close the iterator
+	Next(valuePtr interface{}) bool // Unmarshal the next result row into valuePtr.  Returns false when reaching end of result set
+	NextBytes() []byte              // Retrieve raw bytes for the next result row
+	Close() error                   // Closes the iterator.  Returns any row-level errors seen during iteration.
 }
 
 type DeleteableBucket interface {
@@ -97,6 +112,8 @@ type ViewResult struct {
 	Rows      ViewRows    `json:"rows"`
 	Errors    []ViewError `json:"errors,omitempty"`
 	Collator  JSONCollator
+	iterIndex int   // Used to support iterator interface
+	iterErr   error // Error encountered during iteration
 }
 
 type ViewRows []*ViewRow

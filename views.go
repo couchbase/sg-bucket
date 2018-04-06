@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+
+	"github.com/couchbase/gocb"
 )
 
 // Validates a design document.
@@ -218,4 +220,77 @@ func (result *ViewResult) Swap(i, j int) {
 
 func (result *ViewResult) Less(i, j int) bool {
 	return result.Collator.Collate(result.Rows[i].Key, result.Rows[j].Key) < 0
+}
+
+// ViewResult: Implementation of the interface
+
+// Note: iterIndex is a 1-based counter, for consistent error handling w/ gocb's iterators
+func (r *ViewResult) NextBytes() []byte {
+
+	if len(r.Errors) > 0 || r.iterErr != nil {
+		return nil
+	}
+
+	if r.iterIndex >= len(r.Rows) {
+		return nil
+	}
+	r.iterIndex++
+
+	var rowBytes []byte
+	rowBytes, r.iterErr = json.Marshal(r.Rows[r.iterIndex-1])
+	if r.iterErr != nil {
+		return nil
+	}
+
+	return rowBytes
+
+}
+
+func (r *ViewResult) Next(valuePtr interface{}) bool {
+	if len(r.Errors) > 0 || r.iterErr != nil {
+		return false
+	}
+
+	row := r.NextBytes()
+	if row == nil {
+		return false
+	}
+
+	r.iterErr = json.Unmarshal(row, valuePtr)
+	if r.iterErr != nil {
+		return false
+	}
+
+	return true
+}
+
+func (r *ViewResult) Close() error {
+	if r.iterErr != nil {
+		return r.iterErr
+	}
+
+	if len(r.Errors) > 0 {
+		return r.Errors[0]
+	}
+
+	return nil
+}
+
+func (r *ViewResult) One(valuePtr interface{}) error {
+	if !r.Next(valuePtr) {
+		err := r.Close()
+		if err != nil {
+			return err
+		}
+		return gocb.ErrNoResults // Using standard gocb error to standardize iterator error handling across gocb and walrus
+	}
+
+	// Ignore any errors occurring after we already have our result
+	err := r.Close()
+	if err != nil {
+		// Return no error as we got the one result already.
+		return nil
+	}
+
+	return nil
 }
