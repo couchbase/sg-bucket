@@ -95,6 +95,11 @@ type DeleteableBucket interface {
 	CloseAndDelete() error
 }
 
+type FlushableBucket interface {
+	Bucket
+	Flush() error
+}
+
 // A set of option flags for the Write method.
 type WriteOptions int
 
