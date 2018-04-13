@@ -22,7 +22,7 @@ type FeedEvent struct {
 	Flags       uint32     // Item flags
 	Expiry      uint32     // Item expiration time (UNIX Epoch time)
 	Key, Value  []byte     // Item key/value
-	Sequence    uint64     // Sequence identifier of document
+	Sequence    uint64     // Sequence identifier of document.  In Couchbase Server case, identical to Cas field.  Not the doc global sequence.
 	VbNo        uint16     // Vbucket of document
 	DataType    uint8      // Datatype of document
 	Cas         uint64     // Cas of document
