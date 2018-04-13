@@ -94,6 +94,8 @@ type Bucket interface {
 
 	// Getter and setter for the test callback function associated with this bucket, if any.  Useful for injecting
 	// behavior "mid-invocation", such as triggering CAS retries by mutating the document during a read/write sequence.
+	// Since not all bucket implementations are required to call the test callback, you should verify this first.
+	// Currently used by the Update() and WriteUpdate*() implementations in GoCB buckets.
 	SetTestCallback(fn TestCallbackFn)
 	GetTestCallback() TestCallbackFn
 
