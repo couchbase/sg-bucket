@@ -19,6 +19,9 @@ import (
 // TODO: rename to FeedStateNotify?
 type BucketNotifyFn func(bucket string, err error)
 
+// A function signature for functions used in test callback functions.
+type TestCallbackFn func()
+
 // Raw representation of a bucket document - document body and xattr as bytes, along with cas.
 type BucketDocument struct {
 	Body   []byte
@@ -46,8 +49,24 @@ type Bucket interface {
 	Write(k string, flags int, exp uint32, v interface{}, opt WriteOptions) error
 	WriteCas(k string, flags int, exp uint32, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 	SetBulk(entries []*BulkSetEntry) (err error)
+
+	// This will update the doc in a way that can handle CAS failures and retry them.  An UpdateFunc is
+	// passed which is a transformation that takes the existing doc and returns the new content.  Depending on
+	// the latest doc content, the UpdateFunc may cancel (abort) the update.
+	// This should get consolidated with WriteUpdate() since the functionality is so similar.
 	Update(k string, exp uint32, callback UpdateFunc) error
+
+	// Similar to Update(), but the WriteUpdateFunc has additional functionality to allow callbacks to further
+	// customize behavior related to waiting until the doc update is persisted and/or indexed.
+	// This should get consolidated with WriteUpdate() since the functionality is so similar.  Current use cases
+	// of blocking until the doc has been persisted and/or indexed should be reviewed to see if those flags are
+	// still needed, since they may no longer be required.
 	WriteUpdate(k string, exp uint32, callback WriteUpdateFunc) error
+
+	// Identical to WriteUpdate(), but this will call GetAndTouch() and update the doc expiry value.
+	// This is useful when you need to update the expiry every time WriteUpdate() is called, as in the user TTL case.
+	WriteUpdateAndTouch(k string, exp uint32, callback WriteUpdateFunc) error
+
 	Incr(k string, amt, def uint64, exp uint32) (uint64, error)
 	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
 	GetWithXattr(k string, xattrKey string, rv interface{}, xv interface{}) (cas uint64, err error)
@@ -72,6 +91,13 @@ type Bucket interface {
 	// Goes out to the bucket and gets the high sequence number for all vbuckets and returns
 	// a map of UUIDS and a map of high sequence numbers (map from vbno -> seq)
 	GetStatsVbSeqno(maxVbno uint16, useAbsHighSeqNo bool) (uuids map[uint16]uint64, highSeqnos map[uint16]uint64, seqErr error)
+
+	// Getter and setter for the test callback function associated with this bucket, if any.  Useful for injecting
+	// behavior "mid-invocation", such as triggering CAS retries by mutating the document during a read/write sequence.
+	// Since not all bucket implementations are required to call the test callback, you should verify this first.
+	// Currently used by the Update() and WriteUpdate*() implementations in GoCB buckets.
+	SetTestCallback(fn TestCallbackFn)
+	GetTestCallback() TestCallbackFn
 
 	Refresh() error
 	Close()
