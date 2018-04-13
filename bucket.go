@@ -53,11 +53,14 @@ type Bucket interface {
 	// This will update the doc in a way that can handle CAS failures and retry them.  An UpdateFunc is
 	// passed which is a transformation that takes the existing doc and returns the new content.  Depending on
 	// the latest doc content, the UpdateFunc may cancel (abort) the update.
-	// Deprecated!  Use WriteUpdate() instead.
+	// This should get consolidated with WriteUpdate() since the functionality is so similar.
 	Update(k string, exp uint32, callback UpdateFunc) error
 
 	// Similar to Update(), but the WriteUpdateFunc has additional functionality to allow callbacks to further
-	// customize behavior.  Calls Update() should be replaced with calls to WriteUpdate(), and Update() should be removed.
+	// customize behavior related to waiting until the doc update is persisted and/or indexed.
+	// This should get consolidated with WriteUpdate() since the functionality is so similar.  Current use cases
+	// of blocking until the doc has been persisted and/or indexed should be reviewed to see if those flags are
+	// still needed, since they may no longer be required.
 	WriteUpdate(k string, exp uint32, callback WriteUpdateFunc) error
 
 	// Identical to WriteUpdate(), but this will call GetAndTouch() and update the doc expiry value.
