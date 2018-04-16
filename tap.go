@@ -22,7 +22,6 @@ type FeedEvent struct {
 	Flags       uint32     // Item flags
 	Expiry      uint32     // Item expiration time (UNIX Epoch time)
 	Key, Value  []byte     // Item key/value
-	Sequence    uint64     // Sequence identifier of document
 	VbNo        uint16     // Vbucket of document
 	DataType    uint8      // Datatype of document
 	Cas         uint64     // Cas of document
