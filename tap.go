@@ -50,4 +50,6 @@ type FeedArguments struct {
 const FeedNoBackfill = math.MaxUint64
 const FeedResume = 1
 
+// FeedEventCallbackFunc performs mutation processing.  Return value indicates whether the mutation should trigger
+// checkpoint persistence (used to avoid recursive checkpoint document processing)
 type FeedEventCallbackFunc func(event FeedEvent) bool
