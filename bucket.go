@@ -46,8 +46,8 @@ type Bucket interface {
 	Write(k string, flags int, exp uint32, v interface{}, opt WriteOptions) error
 	WriteCas(k string, flags int, exp uint32, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 	SetBulk(entries []*BulkSetEntry) (err error)
-	Update(k string, exp uint32, callback UpdateFunc) error
-	WriteUpdate(k string, exp uint32, callback WriteUpdateFunc) error
+	Update(k string, exp uint32, callback UpdateFunc) (casOut uint64, err error)
+	WriteUpdate(k string, exp uint32, callback WriteUpdateFunc) (casOut uint64, err error)
 	Incr(k string, amt, def uint64, exp uint32) (uint64, error)
 	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
 	GetWithXattr(k string, xattrKey string, rv interface{}, xv interface{}) (cas uint64, err error)
