@@ -2,6 +2,7 @@ package sgbucket
 
 import (
 	"math"
+	"time"
 )
 
 // Tap operation type (found in TapEvent)
@@ -18,14 +19,15 @@ const (
 
 // A TAP notification of an operation on the server.
 type FeedEvent struct {
-	Opcode      FeedOpcode // Type of event
-	Flags       uint32     // Item flags
-	Expiry      uint32     // Item expiration time (UNIX Epoch time)
-	Key, Value  []byte     // Item key/value
-	VbNo        uint16     // Vbucket of document
-	DataType    uint8      // Datatype of document
-	Cas         uint64     // Cas of document
-	Synchronous bool       // When true, requires that event is processed synchronously
+	Opcode       FeedOpcode // Type of event
+	Flags        uint32     // Item flags
+	Expiry       uint32     // Item expiration time (UNIX Epoch time)
+	Key, Value   []byte     // Item key/value
+	VbNo         uint16     // Vbucket of document
+	DataType     uint8      // Datatype of document
+	Cas          uint64     // Cas of document
+	Synchronous  bool       // When true, requires that event is processed synchronously
+	TimeReceived time.Time  // Used for latency calculations
 }
 
 // A Tap feed. Events from the bucket can be read from the channel returned by Events().
