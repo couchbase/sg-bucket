@@ -73,6 +73,19 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 
 	var collator JSONCollator
 
+	if keys, ok := params["keys"].([]interface{}); ok {
+		filteredRows := make(ViewRows, 0)
+		for _, targetKey := range keys {
+			i := sort.Search(len(result.Rows), func(i int) bool {
+				return collator.Collate(result.Rows[i].Key, targetKey) >= 0
+			})
+			if i < len(result.Rows) && collator.Collate(result.Rows[i].Key, targetKey) == 0 {
+				filteredRows = append(filteredRows, result.Rows[i])
+			}
+		}
+		result.Rows = filteredRows
+	}
+
 	if startkey != nil {
 		i := sort.Search(len(result.Rows), func(i int) bool {
 			return collator.Collate(result.Rows[i].Key, startkey) >= 0
