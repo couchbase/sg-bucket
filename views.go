@@ -79,7 +79,7 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 			i := sort.Search(len(result.Rows), func(i int) bool {
 				return collator.Collate(result.Rows[i].Key, targetKey) >= 0
 			})
-			if collator.Collate(result.Rows[i].Key, targetKey) == 0 {
+			if i < len(result.Rows) && collator.Collate(result.Rows[i].Key, targetKey) == 0 {
 				filteredRows = append(filteredRows, result.Rows[i])
 			}
 		}
