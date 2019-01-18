@@ -45,6 +45,7 @@ type FeedArguments struct {
 	KeysOnly   bool           // If true, client doesn't want values so server shouldn't send them.
 	Notify     BucketNotifyFn // Callback function to send notifications about lost Tap Feed
 	Terminator chan bool      // Feed will be terminated when this channel is closed (DCP Only)
+	FeedId     string         // Optional feed id
 }
 
 // Value for TapArguments.Backfill denoting that no past events at all should be sent.  FeedNoBackfill value
