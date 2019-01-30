@@ -12,6 +12,7 @@ const (
 	FeedOpEndBackfill
 	FeedOpMutation
 	FeedOpDeletion
+	FeedOpSetMetaData
 	FeedOpCheckpointStart
 	FeedOpCheckpointEnd
 )
@@ -23,6 +24,7 @@ type FeedEvent struct {
 	Expiry      uint32     // Item expiration time (UNIX Epoch time)
 	Key, Value  []byte     // Item key/value
 	VbNo        uint16     // Vbucket of document
+	VbSeq       uint64     // Vbucket sequence of document
 	DataType    uint8      // Datatype of document
 	Cas         uint64     // Cas of document
 	Synchronous bool       // When true, requires that event is processed synchronously
@@ -43,6 +45,7 @@ type FeedArguments struct {
 	KeysOnly   bool           // If true, client doesn't want values so server shouldn't send them.
 	Notify     BucketNotifyFn // Callback function to send notifications about lost Tap Feed
 	Terminator chan bool      // Feed will be terminated when this channel is closed (DCP Only)
+	NumWorkers uint16         // Number of goroutines used to work the DCP feed.
 }
 
 // Value for TapArguments.Backfill denoting that no past events at all should be sent.  FeedNoBackfill value
