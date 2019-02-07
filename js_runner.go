@@ -13,8 +13,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"github.com/robertkrimen/otto"
+	"os"
 )
 
 // Alternate type to wrap a Go string in to mark that Call() should interpret it as JSON.
@@ -66,11 +66,31 @@ func (runner *JSRunner) Init(funcSource string) error {
 		return otto.UndefinedValue()
 	})
 
+	runner.js.Set("console", map[string]interface{}{
+		"error": func(s string) { errorMessageCallback(s)},
+		"log": func(s string) { logMessageCallback(s)},
+	})
+
 	if _, err := runner.SetFunction(funcSource); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+var logMessageCallback = defaultLogFunction
+var errorMessageCallback = defaultLogFunction
+
+func (runner *JSRunner) SetErrorCallback(message func(string)){
+	errorMessageCallback = message
+}
+
+func (runner *JSRunner) SetLogCallback(message func(string)){
+	logMessageCallback = message
+}
+
+func defaultLogFunction(s string) {
+	fmt.Fprintln(os.Stdout, s)
 }
 
 // Sets the JavaScript function the runner executes.
