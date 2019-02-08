@@ -85,13 +85,13 @@ var errorMessageCallback = defaultLogFunction
 
 var logCallbackLock sync.Mutex
 
-func (runner *JSRunner) SetErrorCallback(logFn func(string)){
+func (runner *JSRunner) SetConsoleErrorCallback(logFn func(string)){
 	logCallbackLock.Lock()
 	errorMessageCallback = logFn
 	logCallbackLock.Unlock()
 }
 
-func (runner *JSRunner) SetLogCallback(logFn func(string)){
+func (runner *JSRunner) SetConsoleLogCallback(logFn func(string)){
 	logCallbackLock.Lock()
 	logMessageCallback = logFn
 	logCallbackLock.Unlock()
