@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"github.com/robertkrimen/otto"
 	"os"
+	"sync"
 )
 
 // Alternate type to wrap a Go string in to mark that Call() should interpret it as JSON.
@@ -81,12 +82,18 @@ func (runner *JSRunner) Init(funcSource string) error {
 var logMessageCallback = defaultLogFunction
 var errorMessageCallback = defaultLogFunction
 
-func (runner *JSRunner) SetErrorCallback(message func(string)){
-	errorMessageCallback = message
+var logCallbackLock sync.Mutex
+
+func (runner *JSRunner) SetErrorCallback(logFn func(string)){
+	logCallbackLock.Lock()
+	errorMessageCallback = logFn
+	logCallbackLock.Unlock()
 }
 
-func (runner *JSRunner) SetLogCallback(message func(string)){
-	logMessageCallback = message
+func (runner *JSRunner) SetLogCallback(logFn func(string)){
+	logCallbackLock.Lock()
+	logMessageCallback = logFn
+	logCallbackLock.Unlock()
 }
 
 func defaultLogFunction(s string) {
