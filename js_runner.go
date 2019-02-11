@@ -13,10 +13,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"sync"
-
 	"github.com/robertkrimen/otto"
+	"os"
 )
 
 // Alternate type to wrap a Go string in to mark that Call() should interpret it as JSON.
@@ -55,6 +53,10 @@ func NewJSRunner(funcSource string) (*JSRunner, error) {
 
 // Initializes a JSRunner.
 func (runner *JSRunner) Init(funcSource string) error {
+	return runner.InitWithLogging(funcSource, defaultLogFunction, defaultLogFunction)
+}
+
+func (runner *JSRunner) InitWithLogging(funcSource string, consoleErrorFunc func(string), consoleLogFunc func(string)) error{
 	runner.js = otto.New()
 	runner.fn = otto.UndefinedValue()
 
@@ -68,33 +70,16 @@ func (runner *JSRunner) Init(funcSource string) error {
 		return otto.UndefinedValue()
 	})
 
-	runner.js.Set("console", map[string]interface{}{
-		"error": func(s string) { errorMessageCallback(s)},
-		"log": func(s string) { logMessageCallback(s)},
-	})
-
 	if _, err := runner.SetFunction(funcSource); err != nil {
 		return err
 	}
 
+	runner.js.Set("console", map[string]interface{}{
+		"error": consoleErrorFunc,
+		"log": consoleLogFunc,
+	})
+
 	return nil
-}
-
-var logMessageCallback = defaultLogFunction
-var errorMessageCallback = defaultLogFunction
-
-var logCallbackLock sync.Mutex
-
-func (runner *JSRunner) SetConsoleErrorCallback(logFn func(string)){
-	logCallbackLock.Lock()
-	errorMessageCallback = logFn
-	logCallbackLock.Unlock()
-}
-
-func (runner *JSRunner) SetConsoleLogCallback(logFn func(string)){
-	logCallbackLock.Lock()
-	logMessageCallback = logFn
-	logCallbackLock.Unlock()
 }
 
 func defaultLogFunction(s string) {
