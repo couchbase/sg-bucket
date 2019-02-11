@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/robertkrimen/otto"
-	"os"
 )
 
 // Alternate type to wrap a Go string in to mark that Call() should interpret it as JSON.
@@ -83,7 +82,7 @@ func (runner *JSRunner) InitWithLogging(funcSource string, consoleErrorFunc func
 }
 
 func defaultLogFunction(s string) {
-	fmt.Fprintln(os.Stdout, s)
+	fmt.Println(s)
 }
 
 // Sets the JavaScript function the runner executes.
