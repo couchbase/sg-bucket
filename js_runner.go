@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"github.com/robertkrimen/otto"
 )
 
@@ -53,6 +52,10 @@ func NewJSRunner(funcSource string) (*JSRunner, error) {
 
 // Initializes a JSRunner.
 func (runner *JSRunner) Init(funcSource string) error {
+	return runner.InitWithLogging(funcSource, defaultLogFunction, defaultLogFunction)
+}
+
+func (runner *JSRunner) InitWithLogging(funcSource string, consoleErrorFunc func(string), consoleLogFunc func(string)) error{
 	runner.js = otto.New()
 	runner.fn = otto.UndefinedValue()
 
@@ -70,7 +73,16 @@ func (runner *JSRunner) Init(funcSource string) error {
 		return err
 	}
 
+	runner.js.Set("console", map[string]interface{}{
+		"error": consoleErrorFunc,
+		"log": consoleLogFunc,
+	})
+
 	return nil
+}
+
+func defaultLogFunction(s string) {
+	fmt.Println(s)
 }
 
 // Sets the JavaScript function the runner executes.
