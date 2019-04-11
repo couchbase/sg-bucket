@@ -27,6 +27,8 @@ type BucketDocument struct {
 	Expiry uint32 // Item expiration time (UNIX Epoch time)
 }
 
+type Feature int
+
 // Abstract storage interface based on Bucket from the go-couchbase package.
 // A Bucket is a key-value store with a map/reduce query interface, as found in Couchbase Server 2.
 // The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
@@ -58,6 +60,9 @@ type Bucket interface {
 	GetDDoc(docname string, into interface{}) error
 	PutDDoc(docname string, value interface{}) error
 	DeleteDDoc(docname string) error
+
+	//Check whether a particular feature is supported by a bucket. Feature constants defined in Sync Gateway.
+	IsSupported(feature Feature) bool
 
 	// Issue a view query, and return the results as a ViewResult
 	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
