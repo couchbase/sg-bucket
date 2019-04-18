@@ -32,6 +32,7 @@ type BucketFeature int
 const (
 	BucketFeatureXattrs = BucketFeature(iota)
 	BucketFeatureN1ql
+	BucketFeatureCrc32cMacroExpansion
 )
 
 // Abstract storage interface based on Bucket from the go-couchbase package.
@@ -90,7 +91,7 @@ type Bucket interface {
 	Dump()
 	VBHash(docID string) uint32
 	GetMaxVbno() (uint16, error)
-	CouchbaseServerVersion() (major uint64, minor uint64, micro string, err error)
+	CouchbaseServerVersion() (major uint64, minor uint64, micro string)
 	UUID() (string, error)
 }
 
