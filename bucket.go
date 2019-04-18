@@ -32,6 +32,10 @@ type BucketFeature int
 const (
 	BucketFeatureXattrs = BucketFeature(iota)
 	BucketFeatureN1ql
+
+	// Crc32c macro expansion is used to avoid conflicting with the Couchbase Eventing module, which also uses XATTRS.
+	// Since Couchbase Eventing was introduced in Couchbase Server 5.5, the Crc32c macro expansion only needs to be done on 5.5 or later.
+	BucketFeatureCrc32cMacroExpansion
 )
 
 // Abstract storage interface based on Bucket from the go-couchbase package.
@@ -90,7 +94,7 @@ type Bucket interface {
 	Dump()
 	VBHash(docID string) uint32
 	GetMaxVbno() (uint16, error)
-	CouchbaseServerVersion() (major uint64, minor uint64, micro string, err error)
+	CouchbaseServerVersion() (major uint64, minor uint64, micro string)
 	UUID() (string, error)
 }
 
