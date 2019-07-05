@@ -11,6 +11,7 @@ package sgbucket
 
 import (
 	"errors"
+	"expvar"
 	"fmt"
 )
 
@@ -79,8 +80,8 @@ type Bucket interface {
 	// Issue a view query, and return an iterator supporting row-level unmarshalling of the results.
 	ViewQuery(ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
 
-	StartTapFeed(args FeedArguments) (MutationFeed, error)
-	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc) error
+	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
+	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
 
 	// Goes out to the bucket and gets the high sequence number for all vbuckets and returns
 	// a map of UUIDS and a map of high sequence numbers (map from vbno -> seq)
