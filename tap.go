@@ -40,6 +40,7 @@ type MutationFeed interface {
 
 // Parameters for requesting a TAP feed. Call DefaultTapArguments to get a default one.
 type FeedArguments struct {
+	ID         string         // Feed ID, used to build unique identifier for DCP feed
 	Backfill   uint64         // Timestamp of oldest item to send. Use TapNoBackfill to suppress all past items.
 	Dump       bool           // If set, server will disconnect after sending existing items.
 	KeysOnly   bool           // If true, client doesn't want values so server shouldn't send them.
