@@ -27,6 +27,7 @@ type FeedEvent struct {
 	DataType     uint8      // Datatype of document
 	Cas          uint64     // Cas of document
 	Synchronous  bool       // When true, requires that event is processed synchronously
+	VbSeq        uint64     // vbucket Sequence
 	TimeReceived time.Time  // Used for latency calculations
 }
 
