@@ -60,6 +60,7 @@ type Bucket interface {
 	DeleteWithXattr(k string, xattrKey string) error
 	WriteUpdateWithXattr(k string, xattrKey string, exp uint32, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
 	GetDDoc(docname string, into interface{}) error
+	GetDDocs(into interface{}) error
 	PutDDoc(docname string, value interface{}) error
 	DeleteDDoc(docname string) error
 
