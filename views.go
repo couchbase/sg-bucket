@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/couchbase/gocb"
 )
@@ -38,10 +39,15 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 
 	if params != nil {
 		includeDocs, _ = params["include_docs"].(bool)
-		plimit, ok := params["limit"].(uint64)
-		if ok {
-			limit = int(plimit)
+
+		if plimit, ok := params["limit"]; ok {
+			if pLimitInt, err := interfaceToInt(plimit); err == nil {
+				limit = pLimitInt
+			} else {
+				logg("Unsupported type for view limit parameter: %T  %v", plimit, err)
+			}
 		}
+
 		reverse, _ = params["reverse"].(bool)
 		if reduceParam, found := params["reduce"].(bool); found {
 			reduce = reduceParam
@@ -216,6 +222,26 @@ func ReduceFunc(reduceFunction string) (func([]*ViewRow) (*ViewRow, error), erro
 	default:
 		// TODO: Implement other reduce functions!
 		return nil, fmt.Errorf("Sgbucket only supports _count and _sum reduce functions")
+	}
+}
+
+func interfaceToInt(value interface{}) (int, error) {
+	switch typeValue := value.(type) {
+	case int:
+		return typeValue, nil
+	case int32:
+		return int(typeValue), nil
+	case int64:
+		return int(typeValue), nil
+	case uint32:
+		return int(typeValue), nil
+	case uint64:
+		return int(typeValue), nil
+	case string:
+		i, err := strconv.Atoi(typeValue)
+		return i, err
+	default:
+		return 0, fmt.Errorf("Unable to convert %v (%T) -> int.", value, value)
 	}
 }
 
