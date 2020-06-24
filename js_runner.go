@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/robertkrimen/otto"
 )
 
@@ -55,7 +56,7 @@ func (runner *JSRunner) Init(funcSource string) error {
 	return runner.InitWithLogging(funcSource, defaultLogFunction, defaultLogFunction)
 }
 
-func (runner *JSRunner) InitWithLogging(funcSource string, consoleErrorFunc func(string), consoleLogFunc func(string)) error{
+func (runner *JSRunner) InitWithLogging(funcSource string, consoleErrorFunc func(string), consoleLogFunc func(string)) error {
 	runner.js = otto.New()
 	runner.fn = otto.UndefinedValue()
 
@@ -75,7 +76,7 @@ func (runner *JSRunner) InitWithLogging(funcSource string, consoleErrorFunc func
 
 	runner.js.Set("console", map[string]interface{}{
 		"error": consoleErrorFunc,
-		"log": consoleLogFunc,
+		"log":   consoleLogFunc,
 	})
 
 	return nil
@@ -123,6 +124,12 @@ func (runner *JSRunner) jsonToValue(jsonStr string) (interface{}, error) {
 		return nil, fmt.Errorf("Unparseable JSRunner input: %s", jsonStr)
 	}
 	return parsed, nil
+}
+
+// ToValue calls ToValue on the otto instance.  Required for conversion of
+// complex types to otto Values.
+func (runner *JSRunner) ToValue(value interface{}) (otto.Value, error) {
+	return runner.js.ToValue(value)
 }
 
 // Invokes the JS function with JSON inputs.
