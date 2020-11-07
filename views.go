@@ -31,7 +31,7 @@ func CheckDDoc(value interface{}) (*DesignDoc, error) {
 
 // Applies view params (startkey/endkey, limit, etc) against a ViewResult.
 func ProcessViewResult(result ViewResult, params map[string]interface{},
-	bucket Bucket, reduceFunction string) (ViewResult, error) {
+	ds DataStore, reduceFunction string) (ViewResult, error) {
 	includeDocs := false
 	limit := 0
 	reverse := false
@@ -118,7 +118,7 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 		newRows := make(ViewRows, len(result.Rows))
 		for i, row := range result.Rows {
 			//OPT: This may unmarshal the same doc more than once
-			raw, _, err := bucket.GetRaw(row.ID)
+			raw, _, err := ds.GetRaw(row.ID)
 			if err != nil {
 				return result, err
 			}

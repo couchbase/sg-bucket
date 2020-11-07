@@ -23,74 +23,93 @@ type BucketDocument struct {
 	Expiry uint32 // Item expiration time (UNIX Epoch time)
 }
 
-type BucketFeature int
+type DataStoreFeature int
 
 const (
-	BucketFeatureXattrs = BucketFeature(iota)
-	BucketFeatureN1ql
-	BucketFeatureCrc32cMacroExpansion
+	DataStoreFeatureXattrs = DataStoreFeature(iota)
+	DataStoreFeatureN1ql
+	DataStoreFeatureCrc32cMacroExpansion
 )
 
-// Abstract storage interface based on Bucket from the go-couchbase package.
-// A Bucket is a key-value store with a map/reduce query interface, as found in Couchbase Server 2.
+// A DataStore is a key-value store with a map/reduce query interface, as found in Couchbase Server 2.
 // The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
-type Bucket interface {
+type DataStore interface {
 	GetName() string
+	UUID() (string, error)
+	Close()
+	IsSupported(feature DataStoreFeature) bool
+	XattrStore
+	KVStore
+	ViewStore
+	CouchbaseStore
+}
+
+// A KVStore is a key-value store with a streaming mutation feed
+type KVStore interface {
 	Get(k string, rv interface{}) (cas uint64, err error)
 	GetRaw(k string) (rv []byte, cas uint64, err error)
-	GetBulkRaw(keys []string) (map[string][]byte, error)
 	GetAndTouchRaw(k string, exp uint32) (rv []byte, cas uint64, err error)
 	Touch(k string, exp uint32) (cas uint64, err error)
 	Add(k string, exp uint32, v interface{}) (added bool, err error)
 	AddRaw(k string, exp uint32, v []byte) (added bool, err error)
-	Append(k string, data []byte) error
 	Set(k string, exp uint32, v interface{}) error
 	SetRaw(k string, exp uint32, v []byte) error
+	WriteCas(k string, flags int, exp uint32, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 	Delete(k string) error
 	Remove(k string, cas uint64) (casOut uint64, err error)
-	Write(k string, flags int, exp uint32, v interface{}, opt WriteOptions) error
-	WriteCas(k string, flags int, exp uint32, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
-	SetBulk(entries []*BulkSetEntry) (err error)
 	Update(k string, exp uint32, callback UpdateFunc) (casOut uint64, err error)
 	WriteUpdate(k string, exp uint32, callback WriteUpdateFunc) (casOut uint64, err error)
 	Incr(k string, amt, def uint64, exp uint32) (uint64, error)
+	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
+	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
+	Dump()
+}
+
+// A CouchbaseStore is a Couchbase Server-based data store, with vbucket-based storage.
+type CouchbaseStore interface {
+	CouchbaseServerVersion() (major uint64, minor uint64, micro string)
+
+	// GetStatsVbSeqno retrieves the high sequence number for all vbuckets and returns
+	// a map of UUIDS and a map of high sequence numbers (map from vbno -> seq)
+	GetStatsVbSeqno(maxVbno uint16, useAbsHighSeqNo bool) (uuids map[uint16]uint64, highSeqnos map[uint16]uint64, seqErr error)
+	GetMaxVbno() (uint16, error)
+}
+
+// A ViewStore is a data store with a map-reduce query interface.
+type ViewStore interface {
+	GetDDoc(docname string, into interface{}) error
+	GetDDocs(into interface{}) error
+	PutDDoc(docname string, value interface{}) error
+	DeleteDDoc(docname string) error
+
+	// View issues a view query, and returns the results as a ViewResult
+	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
+
+	// ViewCustom issues a view query, and unmarshals the entire view response into the provided vres
+	ViewCustom(ddoc, name string, params map[string]interface{}, vres interface{}) error
+
+	// ViewQuery issues a view query, and returns an iterator supporting row-level unmarshalling of the results.
+	ViewQuery(ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
+}
+
+// An XattrStore is a data store that supports extended attributes
+type XattrStore interface {
 	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
 	WriteWithXattr(k string, xattrKey string, exp uint32, cas uint64, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
 	GetXattr(k string, xattrKey string, xv interface{}) (casOut uint64, err error)
 	GetWithXattr(k string, xattrKey string, rv interface{}, xv interface{}) (cas uint64, err error)
 	DeleteWithXattr(k string, xattrKey string) error
 	WriteUpdateWithXattr(k string, xattrKey string, exp uint32, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
-	GetDDoc(docname string, into interface{}) error
-	GetDDocs(into interface{}) error
-	PutDDoc(docname string, value interface{}) error
-	DeleteDDoc(docname string) error
+}
 
-	//Check whether a particular feature is supported by a bucket.
-	IsSupported(feature BucketFeature) bool
+// A DeletableStore is a data store that supports deletion of the underlying store.
+type DeleteableStore interface {
+	CloseAndDelete() error
+}
 
-	// Issue a view query, and return the results as a ViewResult
-	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
-
-	// Issue a view query, and unmarshal the entire view response into the provided vres
-	ViewCustom(ddoc, name string, params map[string]interface{}, vres interface{}) error
-
-	// Issue a view query, and return an iterator supporting row-level unmarshalling of the results.
-	ViewQuery(ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
-
-	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
-	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
-
-	// Goes out to the bucket and gets the high sequence number for all vbuckets and returns
-	// a map of UUIDS and a map of high sequence numbers (map from vbno -> seq)
-	GetStatsVbSeqno(maxVbno uint16, useAbsHighSeqNo bool) (uuids map[uint16]uint64, highSeqnos map[uint16]uint64, seqErr error)
-
-	Refresh() error
-	Close()
-	Dump()
-	VBHash(docID string) uint32
-	GetMaxVbno() (uint16, error)
-	CouchbaseServerVersion() (major uint64, minor uint64, micro string)
-	UUID() (string, error)
+// A FlushableStore is a data store that supports flush.
+type FlushableStore interface {
+	Flush() error
 }
 
 // Common query iterator interface,  implemented by sgbucket.ViewResult, gocb.ViewResults, and gocb.QueryResults
@@ -99,16 +118,6 @@ type QueryResultIterator interface {
 	Next(valuePtr interface{}) bool // Unmarshal the next result row into valuePtr.  Returns false when reaching end of result set
 	NextBytes() []byte              // Retrieve raw bytes for the next result row
 	Close() error                   // Closes the iterator.  Returns any row-level errors seen during iteration.
-}
-
-type DeleteableBucket interface {
-	Bucket
-	CloseAndDelete() error
-}
-
-type FlushableBucket interface {
-	Bucket
-	Flush() error
 }
 
 // A set of option flags for the Write method.
