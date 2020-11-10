@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/couchbase/gocb"
+	"gopkg.in/couchbase/gocb.v1"
 )
 
 // Validates a design document.
