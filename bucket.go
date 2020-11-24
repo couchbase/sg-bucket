@@ -58,7 +58,6 @@ type KVStore interface {
 	Delete(k string) error
 	Remove(k string, cas uint64) (casOut uint64, err error)
 	Update(k string, exp uint32, callback UpdateFunc) (casOut uint64, err error)
-	WriteUpdate(k string, exp uint32, callback WriteUpdateFunc) (casOut uint64, err error)
 	Incr(k string, amt, def uint64, exp uint32) (uint64, error)
 	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
 	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
