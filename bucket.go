@@ -184,7 +184,7 @@ func (ve ViewError) Error() string {
 	return fmt.Sprintf("Node: %v, reason: %v", ve.From, ve.Reason)
 }
 
-type UpdateFunc func(current []byte) (updated []byte, expiry *uint32, err error)
+type UpdateFunc func(current []byte) (updated []byte, expiry *uint32, delete bool, err error)
 
 type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, expiry *uint32, err error)
 
