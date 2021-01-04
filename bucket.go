@@ -31,6 +31,12 @@ const (
 	DataStoreFeatureCrc32cMacroExpansion
 )
 
+type DataStoreErrorType int
+
+const (
+	KeyNotFoundError = DataStoreErrorType(iota)
+)
+
 // A DataStore is a key-value store with a map/reduce query interface, as found in Couchbase Server 2.
 // The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
 type DataStore interface {
@@ -62,6 +68,7 @@ type KVStore interface {
 	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
 	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
 	Dump()
+	IsError(err error, errorType DataStoreErrorType) bool
 }
 
 // A CouchbaseStore is a Couchbase Server-based data store, with vbucket-based storage.
@@ -76,16 +83,13 @@ type CouchbaseStore interface {
 
 // A ViewStore is a data store with a map-reduce query interface.
 type ViewStore interface {
-	GetDDoc(docname string, into interface{}) error
-	GetDDocs(into interface{}) error
-	PutDDoc(docname string, value interface{}) error
+	GetDDoc(docname string) (DesignDoc, error)
+	GetDDocs() (map[string]DesignDoc, error)
+	PutDDoc(docname string, value *DesignDoc) error
 	DeleteDDoc(docname string) error
 
 	// View issues a view query, and returns the results as a ViewResult
 	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
-
-	// ViewCustom issues a view query, and unmarshals the entire view response into the provided vres
-	ViewCustom(ddoc, name string, params map[string]interface{}, vres interface{}) error
 
 	// ViewQuery issues a view query, and returns an iterator supporting row-level unmarshalling of the results.
 	ViewQuery(ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
