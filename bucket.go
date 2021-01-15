@@ -29,7 +29,7 @@ const (
 	DataStoreFeatureXattrs = DataStoreFeature(iota)
 	DataStoreFeatureN1ql
 	DataStoreFeatureCrc32cMacroExpansion
-	DataStoreFeatureXattrsSubdocDocCreateDeleted
+	DataStoreFeatureCreateDeletedWithXattr
 )
 
 type DataStoreErrorType int
