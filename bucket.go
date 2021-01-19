@@ -29,6 +29,7 @@ const (
 	BucketFeatureXattrs = BucketFeature(iota)
 	BucketFeatureN1ql
 	BucketFeatureCrc32cMacroExpansion
+	BucketFeatureCreateDeletedWithXattr
 )
 
 // Abstract storage interface based on Bucket from the go-couchbase package.
