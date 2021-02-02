@@ -19,6 +19,7 @@ import (
 type BucketDocument struct {
 	Body   []byte
 	Xattr  []byte
+	UserXattr []byte
 	Cas    uint64
 	Expiry uint32 // Item expiration time (UNIX Epoch time)
 }
@@ -104,6 +105,9 @@ type XattrStore interface {
 	GetWithXattr(k string, xattrKey string, rv interface{}, xv interface{}) (cas uint64, err error)
 	DeleteWithXattr(k string, xattrKey string) error
 	WriteUpdateWithXattr(k string, xattrKey string, exp uint32, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
+
+	// WriteXattr(k string, xattrKey string, v interface{}) (err error)
+	// GetUserXattr(k string, xv interface{}) (err error)
 }
 
 // A DeletableStore is a data store that supports deletion of the underlying store.
@@ -200,7 +204,7 @@ type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, exp
 //  updatedDoc, updatedXattr	Mutated doc body, xattr body.  Return a nil value to indicate that no update should be performed.
 //  deletedDoc			Flag to indicate that the document body should be deleted
 //  err                         When error is returned, all updates are canceled
-type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deletedDoc bool, expiry *uint32, err error)
+type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, userXattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deletedDoc bool, expiry *uint32, err error)
 
 // Cloned from go-couchbase, modified for use without a live bucket instance (takes the number of vbuckets as a parameter)
 var crc32tab = []uint32{
