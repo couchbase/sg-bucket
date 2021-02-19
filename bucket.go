@@ -105,7 +105,6 @@ type XattrStore interface {
 	GetWithXattr(k string, xattrKey string, rv interface{}, xv interface{}) (cas uint64, err error)
 	DeleteWithXattr(k string, xattrKey string) error
 	WriteUpdateWithXattr(k string, xattrKey string, userXattrKey string, exp uint32, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
-	WriteXattr(docKey string, xattrKey string, xattrVal interface{}) (casOut uint64, err error)
 }
 
 // A DeletableStore is a data store that supports deletion of the underlying store.
