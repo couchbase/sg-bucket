@@ -17,10 +17,11 @@ import (
 
 // Raw representation of a bucket document - document body and xattr as bytes, along with cas.
 type BucketDocument struct {
-	Body   []byte
-	Xattr  []byte
-	Cas    uint64
-	Expiry uint32 // Item expiration time (UNIX Epoch time)
+	Body      []byte
+	Xattr     []byte
+	UserXattr []byte
+	Cas       uint64
+	Expiry    uint32 // Item expiration time (UNIX Epoch time)
 }
 
 type DataStoreFeature int
@@ -101,9 +102,9 @@ type XattrStore interface {
 	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
 	WriteWithXattr(k string, xattrKey string, exp uint32, cas uint64, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
 	GetXattr(k string, xattrKey string, xv interface{}) (casOut uint64, err error)
-	GetWithXattr(k string, xattrKey string, rv interface{}, xv interface{}) (cas uint64, err error)
+	GetWithXattr(k string, xattrKey string, userXattrKey string, rv interface{}, xv interface{}, uxv interface{}) (cas uint64, err error)
 	DeleteWithXattr(k string, xattrKey string) error
-	WriteUpdateWithXattr(k string, xattrKey string, exp uint32, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
+	WriteUpdateWithXattr(k string, xattrKey string, userXattrKey string, exp uint32, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
 }
 
 // A DeletableStore is a data store that supports deletion of the underlying store.
@@ -200,7 +201,7 @@ type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, exp
 //  updatedDoc, updatedXattr	Mutated doc body, xattr body.  Return a nil value to indicate that no update should be performed.
 //  deletedDoc			Flag to indicate that the document body should be deleted
 //  err                         When error is returned, all updates are canceled
-type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deletedDoc bool, expiry *uint32, err error)
+type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, userXattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deletedDoc bool, expiry *uint32, err error)
 
 // Cloned from go-couchbase, modified for use without a live bucket instance (takes the number of vbuckets as a parameter)
 var crc32tab = []uint32{
