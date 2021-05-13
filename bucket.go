@@ -31,6 +31,7 @@ const (
 	DataStoreFeatureN1ql
 	DataStoreFeatureCrc32cMacroExpansion
 	DataStoreFeatureCreateDeletedWithXattr
+	DataStoreFeatureSubdocOperations
 )
 
 type DataStoreErrorType int
@@ -71,6 +72,7 @@ type KVStore interface {
 	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
 	Dump()
 	IsError(err error, errorType DataStoreErrorType) bool
+	SubdocInsert(docID string, fieldPath string, cas uint64, value interface{}) error
 }
 
 // A CouchbaseStore is a Couchbase Server-based data store, with vbucket-based storage.
