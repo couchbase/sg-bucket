@@ -118,12 +118,11 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 		newRows := make(ViewRows, len(result.Rows))
 		for i, row := range result.Rows {
 			//OPT: This may unmarshal the same doc more than once
-			raw, _, err := ds.GetRaw(row.ID)
+			var parsedDoc interface{}
+			_, err := ds.Get(row.ID, &parsedDoc)
 			if err != nil {
 				return result, err
 			}
-			var parsedDoc interface{}
-			json.Unmarshal(raw, &parsedDoc)
 			newRows[i] = row
 			newRows[i].Doc = &parsedDoc
 		}
