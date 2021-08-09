@@ -49,7 +49,6 @@ type DataStore interface {
 	XattrStore
 	KVStore
 	ViewStore
-	CouchbaseStore
 }
 
 // A KVStore is a key-value store with a streaming mutation feed
@@ -72,15 +71,6 @@ type KVStore interface {
 	Dump()
 	IsError(err error, errorType DataStoreErrorType) bool
 	SubdocInsert(docID string, fieldPath string, cas uint64, value interface{}) error
-}
-
-// A CouchbaseStore is a Couchbase Server-based data store, with vbucket-based storage.
-type CouchbaseStore interface {
-	CouchbaseServerVersion() (major uint64, minor uint64, micro string)
-
-	// GetStatsVbSeqno retrieves the high sequence number for all vbuckets and returns
-	// a map of UUIDS and a map of high sequence numbers (map from vbno -> seq)
-	GetStatsVbSeqno(maxVbno uint16, useAbsHighSeqNo bool) (uuids map[uint16]uint64, highSeqnos map[uint16]uint64, seqErr error)
 	GetMaxVbno() (uint16, error)
 }
 
