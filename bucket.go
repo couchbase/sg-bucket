@@ -92,6 +92,7 @@ type ViewStore interface {
 type XattrStore interface {
 	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
 	WriteWithXattr(k string, xattrKey string, exp uint32, cas uint64, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
+	WriteXattrUpdate(k string, xattrKey string, callback WriteXattrUpdate) (casOut uint64, err error)
 	GetXattr(k string, xattrKey string, xv interface{}) (casOut uint64, err error)
 	GetWithXattr(k string, xattrKey string, userXattrKey string, rv interface{}, xv interface{}, uxv interface{}) (cas uint64, err error)
 	DeleteWithXattr(k string, xattrKey string) error
@@ -193,6 +194,8 @@ type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, exp
 //  deletedDoc			Flag to indicate that the document body should be deleted
 //  err                         When error is returned, all updates are canceled
 type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, userXattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deletedDoc bool, expiry *uint32, err error)
+
+type WriteXattrUpdate func(xattr []byte) (updatedXattr []byte, err error)
 
 // Cloned from go-couchbase, modified for use without a live bucket instance (takes the number of vbuckets as a parameter)
 var crc32tab = []uint32{
