@@ -94,7 +94,7 @@ type XattrStore interface {
 	WriteWithXattr(k string, xattrKey string, exp uint32, cas uint64, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
 	SetXattr(k string, xattrKey string, xv []byte) (casOut uint64, err error)
 	RemoveXattr(k string, xattrKey string, cas uint64) (err error)
-	DeleteXattr(k string, xattrKey string) (err error)
+	DeleteXattrs(k string, xattrKeys ...string) (err error)
 	GetXattr(k string, xattrKey string, xv interface{}) (casOut uint64, err error)
 	GetWithXattr(k string, xattrKey string, userXattrKey string, rv interface{}, xv interface{}, uxv interface{}) (cas uint64, err error)
 	DeleteWithXattr(k string, xattrKey string) error
