@@ -56,6 +56,7 @@ type FeedArguments struct {
 	KeysOnly   bool          // If true, client doesn't want values so server shouldn't send them.
 	Terminator chan bool     // Feed will be terminated when this channel is closed (DCP Only)
 	DoneChan   chan struct{} // DoneChan is closed when the mutation feed terminates.
+	GroupID	   string        // Config group ID the Sync Gateway instance is running with
 }
 
 // Value for TapArguments.Backfill denoting that no past events at all should be sent.  FeedNoBackfill value
