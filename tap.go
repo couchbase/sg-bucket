@@ -57,7 +57,6 @@ type FeedArguments struct {
 	Terminator       chan bool     // Feed will be terminated when this channel is closed (DCP Only)
 	DoneChan         chan struct{} // DoneChan is closed when the mutation feed terminates.
 	CheckpointPrefix string        // DCP checkpoint key prefix
-	SGCfgPrefix      string        // SG config key prefix
 }
 
 // Value for TapArguments.Backfill denoting that no past events at all should be sent.  FeedNoBackfill value
