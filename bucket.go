@@ -71,6 +71,8 @@ type KVStore interface {
 	Dump()
 	IsError(err error, errorType DataStoreErrorType) bool
 	SubdocInsert(docID string, fieldPath string, cas uint64, value interface{}) error
+	GetSubDocRaw(k string, subdocKey string) (value []byte, casOut uint64, err error)
+	WriteSubDoc(k string, subdocKey string, cas uint64, value []byte) (casOut uint64, err error)
 	GetMaxVbno() (uint16, error)
 }
 
@@ -99,8 +101,6 @@ type XattrStore interface {
 	GetWithXattr(k string, xattrKey string, userXattrKey string, rv interface{}, xv interface{}, uxv interface{}) (cas uint64, err error)
 	DeleteWithXattr(k string, xattrKey string) error
 	WriteUpdateWithXattr(k string, xattrKey string, userXattrKey string, exp uint32, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
-	GetSubDocRaw(k string, subdocKey string)(value []byte, casOut uint64, err error)
-	WriteSubDoc(k string, subdocKey string, cas uint64, value []byte) (casOut uint64, err error)
 }
 
 // A DeletableStore is a data store that supports deletion of the underlying store.
