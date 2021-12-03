@@ -71,6 +71,8 @@ type KVStore interface {
 	Dump()
 	IsError(err error, errorType DataStoreErrorType) bool
 	SubdocInsert(docID string, fieldPath string, cas uint64, value interface{}) error
+	GetSubDocRaw(k string, subdocKey string) (value []byte, casOut uint64, err error)
+	WriteSubDoc(k string, subdocKey string, cas uint64, value []byte) (casOut uint64, err error)
 	GetMaxVbno() (uint16, error)
 }
 
