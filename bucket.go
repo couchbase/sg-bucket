@@ -51,6 +51,11 @@ type DataStore interface {
 	ViewStore
 }
 
+// UpsertOptions are the options to use with the set operations
+type UpsertOptions struct {
+	PreserveExpiry bool // GoCB v2 option
+}
+
 // A KVStore is a key-value store with a streaming mutation feed
 type KVStore interface {
 	Get(k string, rv interface{}) (cas uint64, err error)
@@ -59,8 +64,8 @@ type KVStore interface {
 	Touch(k string, exp uint32) (cas uint64, err error)
 	Add(k string, exp uint32, v interface{}) (added bool, err error)
 	AddRaw(k string, exp uint32, v []byte) (added bool, err error)
-	Set(k string, exp uint32, v interface{}) error
-	SetRaw(k string, exp uint32, v []byte) error
+	Set(k string, exp uint32, upsertOptions *UpsertOptions, v interface{}) error
+	SetRaw(k string, exp uint32, upsertOptions *UpsertOptions, v []byte) error
 	WriteCas(k string, flags int, exp uint32, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 	Delete(k string) error
 	Remove(k string, cas uint64) (casOut uint64, err error)
