@@ -56,6 +56,11 @@ type UpsertOptions struct {
 	PreserveExpiry bool // GoCB v2 option
 }
 
+// MutateInOptions is a struct of options to pass in to SubdocUpdateBodyAndXattr
+type MutateInOptions struct {
+	PreserveExpiry bool // Used for imports - CBG-1563
+}
+
 // A KVStore is a key-value store with a streaming mutation feed
 type KVStore interface {
 	Get(k string, rv interface{}) (cas uint64, err error)
@@ -105,7 +110,7 @@ type XattrStore interface {
 	GetXattr(k string, xattrKey string, xv interface{}) (casOut uint64, err error)
 	GetWithXattr(k string, xattrKey string, userXattrKey string, rv interface{}, xv interface{}, uxv interface{}) (cas uint64, err error)
 	DeleteWithXattr(k string, xattrKey string) error
-	WriteUpdateWithXattr(k string, xattrKey string, userXattrKey string, exp uint32, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
+	WriteUpdateWithXattr(k string, xattrKey string, userXattrKey string, exp uint32, opts *MutateInOptions, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
 }
 
 // A DeletableStore is a data store that supports deletion of the underlying store.
