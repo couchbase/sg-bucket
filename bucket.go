@@ -31,6 +31,7 @@ const (
 	DataStoreFeatureCrc32cMacroExpansion
 	DataStoreFeatureCreateDeletedWithXattr
 	DataStoreFeatureSubdocOperations
+	DataStoreFeaturePreserveExpiry
 )
 
 type DataStoreErrorType int
