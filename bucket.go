@@ -103,8 +103,8 @@ type ViewStore interface {
 
 // An XattrStore is a data store that supports extended attributes
 type XattrStore interface {
-	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
-	WriteWithXattr(k string, xattrKey string, exp uint32, cas uint64, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
+	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
+	WriteWithXattr(k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
 	SetXattr(k string, xattrKey string, xv []byte) (casOut uint64, err error)
 	RemoveXattr(k string, xattrKey string, cas uint64) (err error)
 	DeleteXattrs(k string, xattrKeys ...string) (err error)
