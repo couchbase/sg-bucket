@@ -70,8 +70,8 @@ type KVStore interface {
 	Touch(k string, exp uint32) (cas uint64, err error)
 	Add(k string, exp uint32, v interface{}) (added bool, err error)
 	AddRaw(k string, exp uint32, v []byte) (added bool, err error)
-	Set(k string, exp uint32, upsertOptions *UpsertOptions, v interface{}) error
-	SetRaw(k string, exp uint32, upsertOptions *UpsertOptions, v []byte) error
+	Set(k string, exp uint32, opts *UpsertOptions, v interface{}) error
+	SetRaw(k string, exp uint32, opts *UpsertOptions, v []byte) error
 	WriteCas(k string, flags int, exp uint32, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 	Delete(k string) error
 	Remove(k string, cas uint64) (casOut uint64, err error)
