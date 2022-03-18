@@ -31,6 +31,7 @@ const (
 	DataStoreFeatureCrc32cMacroExpansion
 	DataStoreFeatureCreateDeletedWithXattr
 	DataStoreFeatureSubdocOperations
+	DataStoreFeaturePreserveExpiry
 )
 
 type DataStoreErrorType int
@@ -51,6 +52,16 @@ type DataStore interface {
 	ViewStore
 }
 
+// UpsertOptions are the options to use with the set operations
+type UpsertOptions struct {
+	PreserveExpiry bool // GoCB v2 option
+}
+
+// MutateInOptions is a struct of options to pass in to SubdocUpdateBodyAndXattr
+type MutateInOptions struct {
+	PreserveExpiry bool // Used for imports - CBG-1563
+}
+
 // A KVStore is a key-value store with a streaming mutation feed
 type KVStore interface {
 	Get(k string, rv interface{}) (cas uint64, err error)
@@ -59,8 +70,8 @@ type KVStore interface {
 	Touch(k string, exp uint32) (cas uint64, err error)
 	Add(k string, exp uint32, v interface{}) (added bool, err error)
 	AddRaw(k string, exp uint32, v []byte) (added bool, err error)
-	Set(k string, exp uint32, v interface{}) error
-	SetRaw(k string, exp uint32, v []byte) error
+	Set(k string, exp uint32, opts *UpsertOptions, v interface{}) error
+	SetRaw(k string, exp uint32, opts *UpsertOptions, v []byte) error
 	WriteCas(k string, flags int, exp uint32, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 	Delete(k string) error
 	Remove(k string, cas uint64) (casOut uint64, err error)
@@ -92,15 +103,15 @@ type ViewStore interface {
 
 // An XattrStore is a data store that supports extended attributes
 type XattrStore interface {
-	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, v interface{}, xv interface{}) (casOut uint64, err error)
-	WriteWithXattr(k string, xattrKey string, exp uint32, cas uint64, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
+	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
+	WriteWithXattr(k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
 	SetXattr(k string, xattrKey string, xv []byte) (casOut uint64, err error)
 	RemoveXattr(k string, xattrKey string, cas uint64) (err error)
 	DeleteXattrs(k string, xattrKeys ...string) (err error)
 	GetXattr(k string, xattrKey string, xv interface{}) (casOut uint64, err error)
 	GetWithXattr(k string, xattrKey string, userXattrKey string, rv interface{}, xv interface{}, uxv interface{}) (cas uint64, err error)
 	DeleteWithXattr(k string, xattrKey string) error
-	WriteUpdateWithXattr(k string, xattrKey string, userXattrKey string, exp uint32, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
+	WriteUpdateWithXattr(k string, xattrKey string, userXattrKey string, exp uint32, opts *MutateInOptions, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
 }
 
 // A DeletableStore is a data store that supports deletion of the underlying store.
