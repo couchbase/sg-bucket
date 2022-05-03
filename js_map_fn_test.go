@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/couchbaselabs/go.assert"
+	"github.com/stretchr/testify/assert"
 )
 
 // Just verify that the calls to the emit() fn show up in the output.
@@ -20,9 +20,9 @@ func TestEmitFunction(t *testing.T) {
 	mapper := NewJSMapFunction(`function(doc) {emit("key", "value"); emit("k2","v2")}`)
 	rows, err := mapper.CallFunction(`{}`, "doc1", 0, 0)
 	assertNoError(t, err, "CallFunction failed")
-	assert.Equals(t, len(rows), 2)
-	assert.DeepEquals(t, rows[0], &ViewRow{ID: "doc1", Key: "key", Value: "value"})
-	assert.DeepEquals(t, rows[1], &ViewRow{ID: "doc1", Key: "k2", Value: "v2"})
+	assert.Equal(t, 2, len(rows))
+	assert.Equal(t, &ViewRow{ID: "doc1", Key: "key", Value: "value"}, rows[0])
+	assert.Equal(t, &ViewRow{ID: "doc1", Key: "k2", Value: "v2"}, rows[1])
 }
 
 func testMap(t *testing.T, mapFn string, doc string) []*ViewRow {
@@ -36,26 +36,26 @@ func testMap(t *testing.T, mapFn string, doc string) []*ViewRow {
 func TestInputParse(t *testing.T) {
 	rows := testMap(t, `function(doc) {emit(doc.key, doc.value);}`,
 		`{"key": "k", "value": "v"}`)
-	assert.Equals(t, len(rows), 1)
-	assert.DeepEquals(t, rows[0], &ViewRow{ID: "doc1", Key: "k", Value: "v"})
+	assert.Equal(t, 1, len(rows))
+	assert.Equal(t, &ViewRow{ID: "doc1", Key: "k", Value: "v"}, rows[0])
 }
 
 // Test different types of keys/values:
 func TestKeyTypes(t *testing.T) {
 	rows := testMap(t, `function(doc) {emit(doc.key, doc.value);}`,
 		`{"ID": "doc1", "key": true, "value": false}`)
-	assert.DeepEquals(t, rows[0], &ViewRow{ID: "doc1", Key: true, Value: false})
+	assert.Equal(t, &ViewRow{ID: "doc1", Key: true, Value: false}, rows[0])
 	rows = testMap(t, `function(doc) {emit(doc.key, doc.value);}`,
 		`{"ID": "doc1", "key": null, "value": 0}`)
-	assert.DeepEquals(t, rows[0], &ViewRow{ID: "doc1", Key: nil, Value: float64(0)})
+	assert.Equal(t, &ViewRow{ID: "doc1", Key: nil, Value: float64(0)}, rows[0])
 	rows = testMap(t, `function(doc) {emit(doc.key, doc.value);}`,
 		`{"ID": "doc1", "key": ["foo", 23, []], "value": [null]}`)
-	assert.DeepEquals(t, rows[0],
-		&ViewRow{
-			ID:    "doc1",
-			Key:   []interface{}{"foo", 23.0, []interface{}{}},
-			Value: []interface{}{nil},
-		})
+	assert.Equal(t, &ViewRow{
+		ID:    "doc1",
+		Key:   []interface{}{"foo", 23.0, []interface{}{}},
+		Value: []interface{}{nil},
+	}, rows[0])
+
 }
 
 // Empty/no-op map fn
@@ -63,7 +63,7 @@ func TestEmptyJSMapFunction(t *testing.T) {
 	mapper := NewJSMapFunction(`function(doc) {}`)
 	rows, err := mapper.CallFunction(`{"key": "k", "value": "v"}`, "doc1", 0, 0)
 	assertNoError(t, err, "CallFunction failed")
-	assert.Equals(t, len(rows), 0)
+	assert.Equal(t, 0, len(rows))
 }
 
 // Test meta object
@@ -71,7 +71,7 @@ func TestMeta(t *testing.T) {
 	mapper := NewJSMapFunction(`function(doc,meta) {if (meta.id!="doc1") throw("bad ID");}`)
 	rows, err := mapper.CallFunction(`{"key": "k", "value": "v"}`, "doc1", 0, 0)
 	assertNoError(t, err, "CallFunction failed")
-	assert.Equals(t, len(rows), 0)
+	assert.Equal(t, 0, len(rows))
 }
 
 // Test the public API
@@ -79,6 +79,6 @@ func TestPublicJSMapFunction(t *testing.T) {
 	mapper := NewJSMapFunction(`function(doc) {emit(doc.key, doc.value);}`)
 	rows, err := mapper.CallFunction(`{"key": "k", "value": "v"}`, "doc1", 0, 0)
 	assertNoError(t, err, "CallFunction failed")
-	assert.Equals(t, len(rows), 1)
-	assert.DeepEquals(t, rows[0], &ViewRow{ID: "doc1", Key: "k", Value: "v"})
+	assert.Equal(t, 1, len(rows))
+	assert.Equal(t, &ViewRow{ID: "doc1", Key: "k", Value: "v"}, rows[0])
 }
