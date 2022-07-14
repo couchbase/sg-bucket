@@ -32,6 +32,7 @@ const (
 	DataStoreFeatureCreateDeletedWithXattr
 	DataStoreFeatureSubdocOperations
 	DataStoreFeaturePreserveExpiry
+	DataStoreFeatureCollections
 )
 
 type DataStoreErrorType int
