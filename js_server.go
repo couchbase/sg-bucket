@@ -10,6 +10,7 @@ package sgbucket
 
 import (
 	"sync"
+	"time"
 )
 
 // Thread-safe wrapper around a JSRunner.
@@ -17,58 +18,61 @@ type JSServer struct {
 	factory  JSServerTaskFactory
 	tasks    chan JSServerTask
 	fnSource string
-	lock     sync.RWMutex // Protects access to .fnSource
+	lock     sync.RWMutex  // Protects access to .fnSource
+	timeout  time.Duration // Maximum time to allow the js func to run
 }
 
 // Abstract interface for a callable interpreted function. JSRunner implements this.
 type JSServerTask interface {
-	SetFunction(funcSource string) (bool, error)
+	SetFunction(funcSource string, timeout time.Duration) (bool, error)
 	Call(inputs ...interface{}) (interface{}, error)
 }
 
 // Factory function that creates JSServerTasks.
-type JSServerTaskFactory func(fnSource string) (JSServerTask, error)
+type JSServerTaskFactory func(fnSource string, timeout time.Duration) (JSServerTask, error)
 
 // Creates a new JSServer that will run a JavaScript function.
 // 'funcSource' should look like "function(x,y) { ... }"
-func NewJSServer(funcSource string, maxTasks int, factory JSServerTaskFactory) *JSServer {
+func NewJSServer(funcSource string, timeout time.Duration, maxTasks int, factory JSServerTaskFactory) *JSServer {
 	if factory == nil {
-		factory = func(fnSource string) (JSServerTask, error) {
-			return NewJSRunner(fnSource)
+		factory = func(fnSource string, timeout time.Duration) (JSServerTask, error) {
+			return NewJSRunner(fnSource, timeout)
 		}
 	}
 	server := &JSServer{
 		factory:  factory,
 		fnSource: funcSource,
 		tasks:    make(chan JSServerTask, maxTasks),
+		timeout:  timeout,
 	}
 	return server
 }
 
-func (server *JSServer) Function() string {
+func (server *JSServer) Function() (fn string, timeout time.Duration) {
 	server.lock.RLock()
 	defer server.lock.RUnlock()
-	return server.fnSource
+	return server.fnSource, server.timeout
 }
 
 // Public thread-safe entry point for changing the JS function.
-func (server *JSServer) SetFunction(fnSource string) (bool, error) {
+func (server *JSServer) SetFunction(fnSource string, timeout time.Duration) (bool, error) {
 	server.lock.Lock()
 	defer server.lock.Unlock()
 	if fnSource == server.fnSource {
 		return false, nil
 	}
 	server.fnSource = fnSource
+	server.timeout = timeout
 	return true, nil
 }
 
 func (server *JSServer) getTask() (task JSServerTask, err error) {
-	fnSource := server.Function()
+	fnSource, timeout := server.Function()
 	select {
 	case task = <-server.tasks:
-		_, err = task.SetFunction(fnSource)
+		_, err = task.SetFunction(fnSource, timeout)
 	default:
-		task, err = server.factory(fnSource)
+		task, err = server.factory(fnSource, timeout)
 	}
 	return
 }

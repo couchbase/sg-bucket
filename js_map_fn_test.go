@@ -17,7 +17,7 @@ import (
 
 // Just verify that the calls to the emit() fn show up in the output.
 func TestEmitFunction(t *testing.T) {
-	mapper := NewJSMapFunction(`function(doc) {emit("key", "value"); emit("k2","v2")}`)
+	mapper := NewJSMapFunction(`function(doc) {emit("key", "value"); emit("k2","v2")}`, 0)
 	rows, err := mapper.CallFunction(`{}`, "doc1", 0, 0)
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equal(t, 2, len(rows))
@@ -25,8 +25,14 @@ func TestEmitFunction(t *testing.T) {
 	assert.Equal(t, &ViewRow{ID: "doc1", Key: "k2", Value: "v2"}, rows[1])
 }
 
+func TestTimeout(t *testing.T) {
+	mapper := NewJSMapFunction(`function(doc) {while(true) {}}`, 1)
+	_, err := mapper.CallFunction(`{}`, "doc1", 0, 0)
+	assert.ErrorIs(t, err, ErrJSTimeout)
+}
+
 func testMap(t *testing.T, mapFn string, doc string) []*ViewRow {
-	mapper := NewJSMapFunction(mapFn)
+	mapper := NewJSMapFunction(mapFn, 0)
 	rows, err := mapper.CallFunction(doc, "doc1", 0, 0)
 	assertNoError(t, err, fmt.Sprintf("CallFunction failed on %s", doc))
 	return rows
@@ -60,7 +66,7 @@ func TestKeyTypes(t *testing.T) {
 
 // Empty/no-op map fn
 func TestEmptyJSMapFunction(t *testing.T) {
-	mapper := NewJSMapFunction(`function(doc) {}`)
+	mapper := NewJSMapFunction(`function(doc) {}`, 0)
 	rows, err := mapper.CallFunction(`{"key": "k", "value": "v"}`, "doc1", 0, 0)
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equal(t, 0, len(rows))
@@ -68,7 +74,7 @@ func TestEmptyJSMapFunction(t *testing.T) {
 
 // Test meta object
 func TestMeta(t *testing.T) {
-	mapper := NewJSMapFunction(`function(doc,meta) {if (meta.id!="doc1") throw("bad ID");}`)
+	mapper := NewJSMapFunction(`function(doc,meta) {if (meta.id!="doc1") throw("bad ID");}`, 0)
 	rows, err := mapper.CallFunction(`{"key": "k", "value": "v"}`, "doc1", 0, 0)
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equal(t, 0, len(rows))
@@ -76,7 +82,7 @@ func TestMeta(t *testing.T) {
 
 // Test the public API
 func TestPublicJSMapFunction(t *testing.T) {
-	mapper := NewJSMapFunction(`function(doc) {emit(doc.key, doc.value);}`)
+	mapper := NewJSMapFunction(`function(doc) {emit(doc.key, doc.value);}`, 0)
 	rows, err := mapper.CallFunction(`{"key": "k", "value": "v"}`, "doc1", 0, 0)
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equal(t, 1, len(rows))

@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/robertkrimen/otto"
 )
@@ -23,6 +24,8 @@ type JSONString string
 
 type NativeFunction func(otto.FunctionCall) otto.Value
 
+var ErrJSTimeout = errors.New("javascript function timed out")
+
 // Go interface to a JavaScript function (like a map/reduce/channelmap/validation function.)
 // Each JSServer object compiles a single function into a JavaScript runtime, and lets you
 // call that function.
@@ -31,6 +34,7 @@ type JSRunner struct {
 	js       *otto.Otto
 	fn       otto.Value
 	fnSource string
+	timeout  time.Duration
 
 	// Optional function that will be called just before the JS function.
 	Before func()
@@ -42,20 +46,20 @@ type JSRunner struct {
 
 // Creates a new JSRunner that will run a JavaScript function.
 // 'funcSource' should look like "function(x,y) { ... }"
-func NewJSRunner(funcSource string) (*JSRunner, error) {
+func NewJSRunner(funcSource string, timeout time.Duration) (*JSRunner, error) {
 	runner := &JSRunner{}
-	if err := runner.Init(funcSource); err != nil {
+	if err := runner.Init(funcSource, timeout); err != nil {
 		return nil, err
 	}
 	return runner, nil
 }
 
 // Initializes a JSRunner.
-func (runner *JSRunner) Init(funcSource string) error {
-	return runner.InitWithLogging(funcSource, defaultLogFunction, defaultLogFunction)
+func (runner *JSRunner) Init(funcSource string, timeout time.Duration) error {
+	return runner.InitWithLogging(funcSource, timeout, defaultLogFunction, defaultLogFunction)
 }
 
-func (runner *JSRunner) InitWithLogging(funcSource string, consoleErrorFunc func(string), consoleLogFunc func(string)) error {
+func (runner *JSRunner) InitWithLogging(funcSource string, timeout time.Duration, consoleErrorFunc func(string), consoleLogFunc func(string)) error {
 	runner.js = otto.New()
 	runner.fn = otto.UndefinedValue()
 
@@ -69,7 +73,7 @@ func (runner *JSRunner) InitWithLogging(funcSource string, consoleErrorFunc func
 		return otto.UndefinedValue()
 	})
 
-	if _, err := runner.SetFunction(funcSource); err != nil {
+	if _, err := runner.SetFunction(funcSource, timeout); err != nil {
 		return err
 	}
 
@@ -86,7 +90,7 @@ func defaultLogFunction(s string) {
 }
 
 // Sets the JavaScript function the runner executes.
-func (runner *JSRunner) SetFunction(funcSource string) (bool, error) {
+func (runner *JSRunner) SetFunction(funcSource string, timeout time.Duration) (bool, error) {
 	if funcSource == runner.fnSource {
 		return false, nil // no-op
 	}
@@ -103,6 +107,7 @@ func (runner *JSRunner) SetFunction(funcSource string) (bool, error) {
 		runner.fn = fnobj.Value()
 	}
 	runner.fnSource = funcSource
+	runner.timeout = timeout
 	return true, nil
 }
 
@@ -158,13 +163,12 @@ func (runner *JSRunner) CallWithJSON(inputs ...string) (interface{}, error) {
 }
 
 // Invokes the JS function with Go inputs.
-func (runner *JSRunner) Call(inputs ...interface{}) (interface{}, error) {
+func (runner *JSRunner) Call(inputs ...interface{}) (_ interface{}, err error) {
 	if runner.Before != nil {
 		runner.Before()
 	}
 
 	var result otto.Value
-	var err error
 	if runner.fn.IsUndefined() {
 		result = otto.UndefinedValue()
 	} else {
@@ -180,7 +184,35 @@ func (runner *JSRunner) Call(inputs ...interface{}) (interface{}, error) {
 				return nil, fmt.Errorf("Couldn't convert %#v to JS: %s", input, err)
 			}
 		}
+
+		completed := make(chan bool)
+		timeout := runner.timeout
+		if timeout > 0 {
+			defer func() {
+				if caught := recover(); caught != nil {
+					if caught == ErrJSTimeout {
+						err = ErrJSTimeout
+						return
+					}
+					panic(caught)
+				}
+			}()
+
+			runner.js.Interrupt = make(chan func(), 1)
+			go func() {
+				select {
+				case <-completed:
+					return
+				case <-time.After(timeout):
+					runner.js.Interrupt <- func() {
+						panic(ErrJSTimeout)
+					}
+				}
+			}()
+		}
+
 		result, err = runner.fn.Call(runner.fn, inputJS...)
+		close(completed)
 	}
 	if runner.After != nil {
 		return runner.After(result, err)

@@ -10,6 +10,7 @@ package sgbucket
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/robertkrimen/otto"
 )
@@ -24,9 +25,9 @@ type jsMapTask struct {
 }
 
 // Compiles a JavaScript map function to a jsMapTask object.
-func newJsMapTask(funcSource string) (JSServerTask, error) {
+func newJsMapTask(funcSource string, timeout time.Duration) (JSServerTask, error) {
 	mapper := &jsMapTask{}
-	err := mapper.Init(funcSource)
+	err := mapper.Init(funcSource, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +62,11 @@ type JSMapFunction struct {
 	*JSServer
 }
 
-func NewJSMapFunction(fnSource string) *JSMapFunction {
+func NewJSMapFunction(fnSource string, timeout time.Duration) *JSMapFunction {
 	return &JSMapFunction{
-		JSServer: NewJSServer(fnSource, kTaskCacheSize,
-			func(fnSource string) (JSServerTask, error) {
-				return newJsMapTask(fnSource)
+		JSServer: NewJSServer(fnSource, timeout, kTaskCacheSize,
+			func(fnSource string, timeout time.Duration) (JSServerTask, error) {
+				return newJsMapTask(fnSource, timeout)
 			}),
 	}
 }
