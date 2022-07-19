@@ -50,13 +50,14 @@ type MutationFeed interface {
 
 // Parameters for requesting a TAP feed. Call DefaultTapArguments to get a default one.
 type FeedArguments struct {
-	ID               string        // Feed ID, used to build unique identifier for DCP feed
-	Backfill         uint64        // Timestamp of oldest item to send. Use TapNoBackfill to suppress all past items.
-	Dump             bool          // If set, server will disconnect after sending existing items.
-	KeysOnly         bool          // If true, client doesn't want values so server shouldn't send them.
-	Terminator       chan bool     // Feed will be terminated when this channel is closed (DCP Only)
-	DoneChan         chan struct{} // DoneChan is closed when the mutation feed terminates.
-	CheckpointPrefix string        // DCP checkpoint key prefix
+	ID               string              // Feed ID, used to build unique identifier for DCP feed
+	Backfill         uint64              // Timestamp of oldest item to send. Use TapNoBackfill to suppress all past items.
+	Dump             bool                // If set, server will disconnect after sending existing items.
+	KeysOnly         bool                // If true, client doesn't want values so server shouldn't send them.
+	Terminator       chan bool           // Feed will be terminated when this channel is closed (DCP Only)
+	DoneChan         chan struct{}       // DoneChan is closed when the mutation feed terminates.
+	CheckpointPrefix string              // DCP checkpoint key prefix
+	Scopes           map[string][]string // Collection names to stream - map keys are scopes
 }
 
 // Value for TapArguments.Backfill denoting that no past events at all should be sent.  FeedNoBackfill value
