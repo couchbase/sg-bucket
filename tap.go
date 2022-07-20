@@ -58,6 +58,7 @@ type FeedArguments struct {
 	DoneChan         chan struct{}       // DoneChan is closed when the mutation feed terminates.
 	CheckpointPrefix string              // DCP checkpoint key prefix
 	Scopes           map[string][]string // Collection names to stream - map keys are scopes
+	Started          chan error          // If set, will return an error or nil when DCPClient started.
 }
 
 // Value for TapArguments.Backfill denoting that no past events at all should be sent.  FeedNoBackfill value
