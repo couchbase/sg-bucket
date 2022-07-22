@@ -24,7 +24,7 @@ type JSServer struct {
 
 // Abstract interface for a callable interpreted function. JSRunner implements this.
 type JSServerTask interface {
-	SetFunction(funcSource string, timeout time.Duration) (bool, error)
+	SetFunction(funcSource string) (bool, error)
 	Call(inputs ...interface{}) (interface{}, error)
 }
 
@@ -48,31 +48,30 @@ func NewJSServer(funcSource string, timeout time.Duration, maxTasks int, factory
 	return server
 }
 
-func (server *JSServer) Function() (fn string, timeout time.Duration) {
+func (server *JSServer) Function() (fn string) {
 	server.lock.RLock()
 	defer server.lock.RUnlock()
-	return server.fnSource, server.timeout
+	return server.fnSource
 }
 
 // Public thread-safe entry point for changing the JS function.
-func (server *JSServer) SetFunction(fnSource string, timeout time.Duration) (bool, error) {
+func (server *JSServer) SetFunction(fnSource string) (bool, error) {
 	server.lock.Lock()
 	defer server.lock.Unlock()
 	if fnSource == server.fnSource {
 		return false, nil
 	}
 	server.fnSource = fnSource
-	server.timeout = timeout
 	return true, nil
 }
 
 func (server *JSServer) getTask() (task JSServerTask, err error) {
-	fnSource, timeout := server.Function()
+	fnSource := server.Function()
 	select {
 	case task = <-server.tasks:
-		_, err = task.SetFunction(fnSource, timeout)
+		_, err = task.SetFunction(fnSource)
 	default:
-		task, err = server.factory(fnSource, timeout)
+		task, err = server.factory(fnSource, server.timeout)
 	}
 	return
 }

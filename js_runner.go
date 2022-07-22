@@ -62,6 +62,7 @@ func (runner *JSRunner) Init(funcSource string, timeout time.Duration) error {
 func (runner *JSRunner) InitWithLogging(funcSource string, timeout time.Duration, consoleErrorFunc func(string), consoleLogFunc func(string)) error {
 	runner.js = otto.New()
 	runner.fn = otto.UndefinedValue()
+	runner.timeout = timeout
 
 	runner.DefineNativeFunction("log", func(call otto.FunctionCall) otto.Value {
 		var output string
@@ -73,7 +74,7 @@ func (runner *JSRunner) InitWithLogging(funcSource string, timeout time.Duration
 		return otto.UndefinedValue()
 	})
 
-	if _, err := runner.SetFunction(funcSource, timeout); err != nil {
+	if _, err := runner.SetFunction(funcSource); err != nil {
 		return err
 	}
 
@@ -90,7 +91,7 @@ func defaultLogFunction(s string) {
 }
 
 // Sets the JavaScript function the runner executes.
-func (runner *JSRunner) SetFunction(funcSource string, timeout time.Duration) (bool, error) {
+func (runner *JSRunner) SetFunction(funcSource string) (bool, error) {
 	if funcSource == runner.fnSource {
 		return false, nil // no-op
 	}
@@ -107,7 +108,6 @@ func (runner *JSRunner) SetFunction(funcSource string, timeout time.Duration) (b
 		runner.fn = fnobj.Value()
 	}
 	runner.fnSource = funcSource
-	runner.timeout = timeout
 	return true, nil
 }
 
@@ -199,11 +199,14 @@ func (runner *JSRunner) Call(inputs ...interface{}) (_ interface{}, err error) {
 			}()
 
 			runner.js.Interrupt = make(chan func(), 1)
+			timer := time.NewTimer(timeout)
 			go func() {
+				defer timer.Stop()
+
 				select {
 				case <-completed:
 					return
-				case <-time.After(timeout):
+				case <-timer.C:
 					runner.js.Interrupt <- func() {
 						panic(ErrJSTimeout)
 					}
