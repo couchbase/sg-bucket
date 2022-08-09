@@ -24,6 +24,7 @@ type JSONString string
 
 type NativeFunction func(otto.FunctionCall) otto.Value
 
+// This specific instance will be returned if a call times out.
 var ErrJSTimeout = errors.New("javascript function timed out")
 
 // Go interface to a JavaScript function (like a map/reduce/channelmap/validation function.)
@@ -109,6 +110,11 @@ func (runner *JSRunner) SetFunction(funcSource string) (bool, error) {
 	}
 	runner.fnSource = funcSource
 	return true, nil
+}
+
+// Sets the runner's timeout. A value of 0 removes any timeout.
+func (runner *JSRunner) SetTimeout(timeout time.Duration) {
+	runner.timeout = timeout
 }
 
 // Lets you define native helper functions (for example, the "emit" function to be called by
