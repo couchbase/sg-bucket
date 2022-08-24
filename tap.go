@@ -25,6 +25,7 @@ const (
 	FeedOpDeletion
 	FeedOpCheckpointStart
 	FeedOpCheckpointEnd
+	FeedOpExpiration
 )
 
 // A TAP notification of an operation on the server.
