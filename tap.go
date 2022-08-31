@@ -33,6 +33,7 @@ type FeedEvent struct {
 	Flags        uint32     // Item flags
 	Expiry       uint32     // Item expiration time (UNIX Epoch time)
 	Key, Value   []byte     // Item key/value
+	CollectionID uint32     // ID of the item's collection - 0x0 for the default collection
 	VbNo         uint16     // Vbucket of document
 	DataType     uint8      // Datatype of document
 	Cas          uint64     // Cas of document
