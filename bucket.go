@@ -9,6 +9,7 @@
 package sgbucket
 
 import (
+	"context"
 	"errors"
 	"expvar"
 	"fmt"
@@ -46,7 +47,7 @@ const (
 type DataStore interface {
 	GetName() string
 	UUID() (string, error)
-	Close()
+	Close(ctx context.Context)
 	IsSupported(feature DataStoreFeature) bool
 	XattrStore
 	KVStore
@@ -78,8 +79,8 @@ type KVStore interface {
 	Remove(k string, cas uint64) (casOut uint64, err error)
 	Update(k string, exp uint32, callback UpdateFunc) (casOut uint64, err error)
 	Incr(k string, amt, def uint64, exp uint32) (uint64, error)
-	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
-	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
+	StartDCPFeed(ctx context.Context, args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
+	StartTapFeed(ctx context.Context, args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
 	Dump()
 	IsError(err error, errorType DataStoreErrorType) bool
 	SubdocInsert(docID string, fieldPath string, cas uint64, value interface{}) error
@@ -91,16 +92,16 @@ type KVStore interface {
 
 // A ViewStore is a data store with a map-reduce query interface.
 type ViewStore interface {
-	GetDDoc(docname string) (DesignDoc, error)
-	GetDDocs() (map[string]DesignDoc, error)
-	PutDDoc(docname string, value *DesignDoc) error
-	DeleteDDoc(docname string) error
+	GetDDoc(ctx context.Context, docname string) (DesignDoc, error)
+	GetDDocs(ctx context.Context) (map[string]DesignDoc, error)
+	PutDDoc(ctx context.Context, docname string, value *DesignDoc) error
+	DeleteDDoc(ctx context.Context, docname string) error
 
 	// View issues a view query, and returns the results as a ViewResult
-	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
+	View(ctx context.Context, ddoc, name string, params map[string]interface{}) (ViewResult, error)
 
 	// ViewQuery issues a view query, and returns an iterator supporting row-level unmarshalling of the results.
-	ViewQuery(ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
+	ViewQuery(ctx context.Context, ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
 }
 
 // An XattrStore is a data store that supports extended attributes
@@ -118,12 +119,12 @@ type XattrStore interface {
 
 // A DeletableStore is a data store that supports deletion of the underlying store.
 type DeleteableStore interface {
-	CloseAndDelete() error
+	CloseAndDelete(ctx context.Context) error
 }
 
 // A FlushableStore is a data store that supports flush.
 type FlushableStore interface {
-	Flush() error
+	Flush(ctx context.Context) error
 }
 
 // Common query iterator interface,  implemented by sgbucket.ViewResult, gocb.ViewResults, and gocb.QueryResults
