@@ -41,9 +41,7 @@ const (
 	KeyNotFoundError = DataStoreErrorType(iota)
 )
 
-// A DataStore is a key-value store with a map/reduce query interface, as found in Couchbase Server 2.
-// The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
-type DataStore interface {
+type BucketStore interface {
 	GetName() string
 	UUID() (string, error)
 	Close()
@@ -51,6 +49,13 @@ type DataStore interface {
 	XattrStore
 	KVStore
 	ViewStore
+}
+
+// A DataStore is a basic key-value store with extended attributes.
+// The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
+type DataStore interface {
+	XattrStore
+	KVStore
 }
 
 // UpsertOptions are the options to use with the set operations
