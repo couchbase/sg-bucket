@@ -86,6 +86,7 @@ type KVStore interface {
 	GetSubDocRaw(k string, subdocKey string) (value []byte, casOut uint64, err error)
 	WriteSubDoc(k string, subdocKey string, cas uint64, value []byte) (casOut uint64, err error)
 	GetMaxVbno() (uint16, error)
+	GetExpiry(k string) (expiry uint32, err error)
 }
 
 // A ViewStore is a data store with a map-reduce query interface.
