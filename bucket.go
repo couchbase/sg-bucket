@@ -41,6 +41,8 @@ const (
 	KeyNotFoundError = DataStoreErrorType(iota)
 )
 
+// BucketStore is a basic interface that describes a key-value/xattrs, with map-reduce view based data store.
+// Walrus and Couchbase Server buckets are two primary examples of data stores that implement this interface.
 type BucketStore interface {
 	GetName() string
 	UUID() (string, error)
@@ -52,6 +54,7 @@ type BucketStore interface {
 }
 
 // A DataStore is a basic key-value store with extended attributes.
+// A Couchbase Server collection within a bucket is an example of a DataStore.
 // The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
 type DataStore interface {
 	XattrStore
