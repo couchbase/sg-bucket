@@ -23,16 +23,16 @@ type BucketDocument struct {
 	Expiry    uint32 // Item expiration time (UNIX Epoch time)
 }
 
-type DataStoreFeature int
+type BucketStoreFeature int
 
 const (
-	DataStoreFeatureXattrs = DataStoreFeature(iota)
-	DataStoreFeatureN1ql
-	DataStoreFeatureCrc32cMacroExpansion
-	DataStoreFeatureCreateDeletedWithXattr
-	DataStoreFeatureSubdocOperations
-	DataStoreFeaturePreserveExpiry
-	DataStoreFeatureCollections
+	BucketStoreFeatureXattrs = BucketStoreFeature(iota)
+	BucketStoreFeatureN1ql
+	BucketStoreFeatureCrc32cMacroExpansion
+	BucketStoreFeatureCreateDeletedWithXattr
+	BucketStoreFeatureSubdocOperations
+	BucketStoreFeaturePreserveExpiry
+	BucketStoreFeatureCollections
 )
 
 type DataStoreErrorType int
@@ -44,13 +44,12 @@ const (
 // BucketStore is a basic interface that describes a key-value/xattrs, with map-reduce view based data store.
 // Walrus and Couchbase Server buckets are two primary examples of data stores that implement this interface.
 type BucketStore interface {
-	GetName() string
-	UUID() (string, error)
-	Close()
-	IsSupported(feature DataStoreFeature) bool
-	XattrStore
-	KVStore
-	ViewStore
+	GetName() string                             // GetName returns the Bucket name
+	UUID() (string, error)                       // UUID returns a UUID for the bucket
+	Close()                                      // Close closes the bucket
+	IsSupported(feature BucketStoreFeature) bool // IsSupported reports whether the bucket supports a given feature
+	// DefaultDataStore() DataStore                       // DefaultDataStore returns the default data store for the bucket
+	// NamedDataStore(scope, collection string) DataStore // NamedDataStore returns a named data store for the bucket
 }
 
 // A DataStore is a basic key-value store with extended attributes.
@@ -90,11 +89,16 @@ type KVStore interface {
 	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
 	Dump()
 	IsError(err error, errorType DataStoreErrorType) bool
+	GetMaxVbno() (uint16, error)
+	GetExpiry(k string) (expiry uint32, err error)
+	SubdocStore
+}
+
+// SubdocStore describes methods that can be used to operate on parts of a document with a subdoc operation.
+type SubdocStore interface {
 	SubdocInsert(docID string, fieldPath string, cas uint64, value interface{}) error
 	GetSubDocRaw(k string, subdocKey string) (value []byte, casOut uint64, err error)
 	WriteSubDoc(k string, subdocKey string, cas uint64, value []byte) (casOut uint64, err error)
-	GetMaxVbno() (uint16, error)
-	GetExpiry(k string) (expiry uint32, err error)
 }
 
 // A ViewStore is a data store with a map-reduce query interface.
