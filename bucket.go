@@ -41,23 +41,39 @@ const (
 	KeyNotFoundError = DataStoreErrorType(iota)
 )
 
-// BucketStore is a basic interface that describes a key-value/xattrs, with map-reduce view based data store.
-// Walrus and Couchbase Server buckets are two primary examples of data stores that implement this interface.
+// BucketStore is a basic interface that describes a bucket - with one or many underlying DataStore.
 type BucketStore interface {
 	GetName() string                             // GetName returns the Bucket name
 	UUID() (string, error)                       // UUID returns a UUID for the bucket
 	Close()                                      // Close closes the bucket
 	IsSupported(feature BucketStoreFeature) bool // IsSupported reports whether the bucket supports a given feature
-	// DefaultDataStore() DataStore                       // DefaultDataStore returns the default data store for the bucket
-	// NamedDataStore(scope, collection string) DataStore // NamedDataStore returns a named data store for the bucket
+
+	DefaultDataStore() DataStore                       // DefaultDataStore returns the default data store for the bucket
+	NamedDataStore(scope, collection string) DataStore // NamedDataStore returns a named data store for the bucket
+
+	MutationFeedStore
+	TypedErrorStore
 }
 
-// A DataStore is a basic key-value store with extended attributes.
+// MutationFeedStore is a store that supports a DCP or TAP streaming mutation feed.
+type MutationFeedStore interface {
+	GetMaxVbno() (uint16, error)
+	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
+	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
+}
+
+type TypedErrorStore interface {
+	IsError(err error, errorType DataStoreErrorType) bool
+}
+
+// A DataStore is a basic key-value store with extended attributes and subdoc operations.
 // A Couchbase Server collection within a bucket is an example of a DataStore.
 // The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
 type DataStore interface {
-	XattrStore
 	KVStore
+	XattrStore
+	SubdocStore
+	TypedErrorStore
 }
 
 // UpsertOptions are the options to use with the set operations
@@ -70,7 +86,7 @@ type MutateInOptions struct {
 	PreserveExpiry bool // Used for imports - CBG-1563
 }
 
-// A KVStore is a key-value store with a streaming mutation feed
+// A KVStore is a key-value store
 type KVStore interface {
 	Get(k string, rv interface{}) (cas uint64, err error)
 	GetRaw(k string) (rv []byte, cas uint64, err error)
@@ -85,13 +101,7 @@ type KVStore interface {
 	Remove(k string, cas uint64) (casOut uint64, err error)
 	Update(k string, exp uint32, callback UpdateFunc) (casOut uint64, err error)
 	Incr(k string, amt, def uint64, exp uint32) (uint64, error)
-	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
-	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
-	Dump()
-	IsError(err error, errorType DataStoreErrorType) bool
-	GetMaxVbno() (uint16, error)
 	GetExpiry(k string) (expiry uint32, err error)
-	SubdocStore
 }
 
 // SubdocStore describes methods that can be used to operate on parts of a document with a subdoc operation.
