@@ -14,6 +14,28 @@ import (
 	"fmt"
 )
 
+type DataStoreName struct {
+	scope      string
+	collection string
+}
+
+// NewDataStoreName returns a DataStoreName for a given scope and collection.
+func NewDataStoreName(scope, collection string) DataStoreName {
+	return DataStoreName{scope, collection}
+}
+
+func (dsn *DataStoreName) String() string {
+	return dsn.scope + "." + dsn.collection
+}
+
+func (dsn *DataStoreName) Scope() string {
+	return dsn.scope
+}
+
+func (dsn *DataStoreName) Collection() string {
+	return dsn.collection
+}
+
 // Raw representation of a bucket document - document body and xattr as bytes, along with cas.
 type BucketDocument struct {
 	Body      []byte
@@ -48,11 +70,18 @@ type BucketStore interface {
 	Close()                                      // Close closes the bucket
 	IsSupported(feature BucketStoreFeature) bool // IsSupported reports whether the bucket supports a given feature
 
-	DefaultDataStore() DataStore                       // DefaultDataStore returns the default data store for the bucket
-	NamedDataStore(scope, collection string) DataStore // NamedDataStore returns a named data store for the bucket
+	ListDataStores() ([]DataStoreName, error) // ListDataStores returns a list of all DataStore names in the bucket
+	DefaultDataStore() DataStore              // DefaultDataStore returns the default data store for the bucket
+	NamedDataStore(DataStoreName) DataStore   // NamedDataStore returns a named data store for the bucket
 
 	MutationFeedStore
 	TypedErrorStore
+}
+
+// DynamicDataStoreBucket is an interface that describes a bucket that can change its set of DataStores.
+type DynamicDataStoreBucket interface {
+	CreateDataStore(DataStoreName) error // CreateDataStore creates a new DataStore in the bucket
+	DropDataStore(DataStoreName) error   // DropDataStore drops a DataStore from the bucket
 }
 
 // MutationFeedStore is a store that supports a DCP or TAP streaming mutation feed.
@@ -70,6 +99,7 @@ type TypedErrorStore interface {
 // A Couchbase Server collection within a bucket is an example of a DataStore.
 // The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
 type DataStore interface {
+	DataStoreName() DataStoreName
 	GetName() string // GetName returns the datastore name (usually a qualified collection name)
 	KVStore
 	XattrStore
