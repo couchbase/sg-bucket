@@ -14,26 +14,9 @@ import (
 	"fmt"
 )
 
-type DataStoreName struct {
-	scope      string
-	collection string
-}
-
-// NewDataStoreName returns a DataStoreName for a given scope and collection.
-func NewDataStoreName(scope, collection string) DataStoreName {
-	return DataStoreName{scope, collection}
-}
-
-func (dsn *DataStoreName) String() string {
-	return dsn.scope + "." + dsn.collection
-}
-
-func (dsn *DataStoreName) Scope() string {
-	return dsn.scope
-}
-
-func (dsn *DataStoreName) Collection() string {
-	return dsn.collection
+type DataStoreName interface {
+	Scope() string
+	Collection() string
 }
 
 // Raw representation of a bucket document - document body and xattr as bytes, along with cas.
