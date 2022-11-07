@@ -14,9 +14,13 @@ import (
 	"fmt"
 )
 
+// DataStoreName provides the methods that can give you each part of a data store.
+//
+// Each implementation is free to decide how to store the data store name, to avoid both sgbucket leaking into implementations,
+// and also reduce duplication for storing these values, in the event SDKs already hold copies of names internally.
 type DataStoreName interface {
-	Scope() string
-	Collection() string
+	ScopeName() string
+	CollectionName() string
 }
 
 // Raw representation of a bucket document - document body and xattr as bytes, along with cas.
@@ -82,7 +86,6 @@ type TypedErrorStore interface {
 // A Couchbase Server collection within a bucket is an example of a DataStore.
 // The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
 type DataStore interface {
-	DataStoreName() DataStoreName
 	GetName() string // GetName returns the datastore name (usually a qualified collection name)
 	KVStore
 	XattrStore
