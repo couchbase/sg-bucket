@@ -133,6 +133,7 @@ type KVStore interface {
 	Update(k string, exp uint32, callback UpdateFunc) (casOut uint64, err error)
 	Incr(k string, amt, def uint64, exp uint32) (uint64, error)
 	GetExpiry(k string) (expiry uint32, err error)
+	Exists(k string) (exists bool, err error)
 }
 
 // SubdocStore describes methods that can be used to operate on parts of a document with a subdoc operation.
