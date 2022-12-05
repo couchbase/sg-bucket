@@ -14,6 +14,15 @@ import (
 	"fmt"
 )
 
+// DataStoreName provides the methods that can give you each part of a data store.
+//
+// Each implementation is free to decide how to store the data store name, to avoid both sgbucket leaking into implementations,
+// and also reduce duplication for storing these values, in the event SDKs already hold copies of names internally.
+type DataStoreName interface {
+	ScopeName() string
+	CollectionName() string
+}
+
 // Raw representation of a bucket document - document body and xattr as bytes, along with cas.
 type BucketDocument struct {
 	Body      []byte
@@ -23,16 +32,16 @@ type BucketDocument struct {
 	Expiry    uint32 // Item expiration time (UNIX Epoch time)
 }
 
-type DataStoreFeature int
+type BucketStoreFeature int
 
 const (
-	DataStoreFeatureXattrs = DataStoreFeature(iota)
-	DataStoreFeatureN1ql
-	DataStoreFeatureCrc32cMacroExpansion
-	DataStoreFeatureCreateDeletedWithXattr
-	DataStoreFeatureSubdocOperations
-	DataStoreFeaturePreserveExpiry
-	DataStoreFeatureCollections
+	BucketStoreFeatureXattrs = BucketStoreFeature(iota)
+	BucketStoreFeatureN1ql
+	BucketStoreFeatureCrc32cMacroExpansion
+	BucketStoreFeatureCreateDeletedWithXattr
+	BucketStoreFeatureSubdocOperations
+	BucketStoreFeaturePreserveExpiry
+	BucketStoreFeatureCollections
 )
 
 type DataStoreErrorType int
@@ -41,16 +50,53 @@ const (
 	KeyNotFoundError = DataStoreErrorType(iota)
 )
 
-// A DataStore is a key-value store with a map/reduce query interface, as found in Couchbase Server 2.
+// BucketStore is a basic interface that describes a bucket - with one or many underlying DataStore.
+type BucketStore interface {
+	GetName() string       // GetName returns the Bucket name
+	UUID() (string, error) // UUID returns a UUID for the bucket
+	Close()                // Close closes the bucket
+
+	ListDataStores() ([]DataStoreName, error) // ListDataStores returns a list of all DataStore names in the bucket
+	DefaultDataStore() DataStore              // DefaultDataStore returns the default data store for the bucket
+	NamedDataStore(DataStoreName) DataStore   // NamedDataStore returns a named data store for the bucket
+
+	MutationFeedStore
+	TypedErrorStore
+	BucketStoreFeatureIsSupported
+}
+
+// DynamicDataStoreBucket is an interface that describes a bucket that can change its set of DataStores.
+type DynamicDataStoreBucket interface {
+	CreateDataStore(DataStoreName) error // CreateDataStore creates a new DataStore in the bucket
+	DropDataStore(DataStoreName) error   // DropDataStore drops a DataStore from the bucket
+}
+
+// MutationFeedStore is a store that supports a DCP or TAP streaming mutation feed.
+type MutationFeedStore interface {
+	GetMaxVbno() (uint16, error)
+	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
+	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
+}
+
+type TypedErrorStore interface {
+	IsError(err error, errorType DataStoreErrorType) bool
+}
+
+type BucketStoreFeatureIsSupported interface {
+	IsSupported(feature BucketStoreFeature) bool // IsSupported reports whether the bucket/datastore supports a given feature
+}
+
+// A DataStore is a basic key-value store with extended attributes and subdoc operations.
+// A Couchbase Server collection within a bucket is an example of a DataStore.
 // The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
 type DataStore interface {
-	GetName() string
-	UUID() (string, error)
-	Close()
-	IsSupported(feature DataStoreFeature) bool
-	XattrStore
+	GetName() string // GetName returns the datastore name (usually a qualified collection name)
+	// DataStoreName() DataStoreName // TODO: Implement later
 	KVStore
-	ViewStore
+	XattrStore
+	SubdocStore
+	TypedErrorStore
+	BucketStoreFeatureIsSupported
 }
 
 // UpsertOptions are the options to use with the set operations
@@ -63,7 +109,7 @@ type MutateInOptions struct {
 	PreserveExpiry bool // Used for imports - CBG-1563
 }
 
-// A KVStore is a key-value store with a streaming mutation feed
+// A KVStore is a key-value store
 type KVStore interface {
 	Get(k string, rv interface{}) (cas uint64, err error)
 	GetRaw(k string) (rv []byte, cas uint64, err error)
@@ -78,15 +124,15 @@ type KVStore interface {
 	Remove(k string, cas uint64) (casOut uint64, err error)
 	Update(k string, exp uint32, callback UpdateFunc) (casOut uint64, err error)
 	Incr(k string, amt, def uint64, exp uint32) (uint64, error)
-	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
-	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
-	Dump()
-	IsError(err error, errorType DataStoreErrorType) bool
+	GetExpiry(k string) (expiry uint32, err error)
+	Exists(k string) (exists bool, err error)
+}
+
+// SubdocStore describes methods that can be used to operate on parts of a document with a subdoc operation.
+type SubdocStore interface {
 	SubdocInsert(docID string, fieldPath string, cas uint64, value interface{}) error
 	GetSubDocRaw(k string, subdocKey string) (value []byte, casOut uint64, err error)
 	WriteSubDoc(k string, subdocKey string, cas uint64, value []byte) (casOut uint64, err error)
-	GetMaxVbno() (uint16, error)
-	GetExpiry(k string) (expiry uint32, err error)
 }
 
 // A ViewStore is a data store with a map-reduce query interface.
@@ -205,11 +251,14 @@ type WriteUpdateFunc func(current []byte) (updated []byte, opt WriteOptions, exp
 
 // Callback used by WriteUpdateWithXattr, used to transform the doc in preparation for update
 // Input parameters:
-//  doc, xattr, cas		existing doc body, xattr body, cas
+//
+//	doc, xattr, cas		existing doc body, xattr body, cas
+//
 // Return values:
-//  updatedDoc, updatedXattr	Mutated doc body, xattr body.  Return a nil value to indicate that no update should be performed.
-//  deletedDoc			Flag to indicate that the document body should be deleted
-//  err                         When error is returned, all updates are canceled
+//
+//	updatedDoc, updatedXattr	Mutated doc body, xattr body.  Return a nil value to indicate that no update should be performed.
+//	deletedDoc			Flag to indicate that the document body should be deleted
+//	err                         When error is returned, all updates are canceled
 type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, userXattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deletedDoc bool, expiry *uint32, err error)
 
 // Cloned from go-couchbase, modified for use without a live bucket instance (takes the number of vbuckets as a parameter)
