@@ -191,9 +191,10 @@ func (runner *JSRunner) Call(inputs ...interface{}) (_ interface{}, err error) {
 			}
 		}
 
-		completed := make(chan bool)
+		var completed chan struct{}
 		timeout := runner.timeout
 		if timeout > 0 {
+			completed = make(chan struct{})
 			defer func() {
 				if caught := recover(); caught != nil {
 					if caught == ErrJSTimeout {
@@ -221,7 +222,9 @@ func (runner *JSRunner) Call(inputs ...interface{}) (_ interface{}, err error) {
 		}
 
 		result, err = runner.fn.Call(runner.fn, inputJS...)
-		close(completed)
+		if completed != nil {
+			close(completed)
+		}
 	}
 	if runner.After != nil {
 		return runner.After(result, err)
