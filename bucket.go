@@ -56,9 +56,9 @@ type BucketStore interface {
 	UUID() (string, error) // UUID returns a UUID for the bucket
 	Close()                // Close closes the bucket
 
-	ListDataStores() ([]DataStoreName, error) // ListDataStores returns a list of all DataStore names in the bucket
-	DefaultDataStore() DataStore              // DefaultDataStore returns the default data store for the bucket
-	NamedDataStore(DataStoreName) DataStore   // NamedDataStore returns a named data store for the bucket
+	ListDataStores() ([]DataStoreName, error)        // ListDataStores returns a list of all DataStore names in the bucket
+	DefaultDataStore() DataStore                     // DefaultDataStore returns the default data store for the bucket
+	NamedDataStore(DataStoreName) (DataStore, error) // NamedDataStore returns a named data store for the bucket
 
 	MutationFeedStore
 	TypedErrorStore
