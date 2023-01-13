@@ -23,9 +23,9 @@ jobs:
       GOPRIVATE: github.com/couchbaselabs
     steps:
       - name: Setup Go Faster
-        uses: WillAbides/setup-go-faster@v1.7.0
+        uses: WillAbides/setup-go-faster@v1.8.0
         with:
-          go-version: ^1.17.5 # >=1.17.5, <2.0.0
+          go-version: ^1.19.5 # >=1.17.5, <2.0.0
       - uses: actions/checkout@v2
       - name: Build
         run: go build -v "./..."
@@ -34,6 +34,6 @@ jobs:
         shell: bash
       - name: Annotate Failures
         if: always()
-        uses: guyarb/golang-test-annotations@v0.5.1
+        uses: guyarb/golang-test-annotations@v0.6.0
         with:
           test-results: test.json
