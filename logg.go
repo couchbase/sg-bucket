@@ -15,7 +15,6 @@ import (
 	"sync/atomic"
 )
 
-
 // Set this to true to enable logging, 0 == false, >0 == true
 var logging uint32 = 0
 

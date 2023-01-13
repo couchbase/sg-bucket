@@ -79,12 +79,11 @@ func (runner *JSRunner) InitWithLogging(funcSource string, timeout time.Duration
 		return err
 	}
 
-	runner.js.Set("console", map[string]interface{}{
+	return runner.js.Set("console", map[string]interface{}{
 		"error": consoleErrorFunc,
 		"log":   consoleLogFunc,
 	})
 
-	return nil
 }
 
 func defaultLogFunction(s string) {
@@ -122,7 +121,7 @@ func (runner *JSRunner) SetTimeout(timeout time.Duration) {
 // This method is not thread-safe and should only be called before making any calls to the
 // main JS function.
 func (runner *JSRunner) DefineNativeFunction(name string, function NativeFunction) {
-	runner.js.Set(name, (func(otto.FunctionCall) otto.Value)(function))
+	_ = runner.js.Set(name, (func(otto.FunctionCall) otto.Value)(function))
 }
 
 func (runner *JSRunner) jsonToValue(jsonStr string) (interface{}, error) {
