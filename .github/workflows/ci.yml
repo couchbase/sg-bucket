@@ -42,7 +42,7 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v3
+      - uses: WillAbides/setup-go-faster@v1.8.0
         with:
           go-version: 1.19.5
       - uses: actions/checkout@v3
@@ -56,7 +56,7 @@ jobs:
     env:
       GOPRIVATE: github.com/couchbaselabs
     steps:
-      - uses: actions/setup-go@v3
+      - uses: WillAbides/setup-go-faster@v1.8.0
         with:
           go-version: 1.19.5
       - uses: actions/checkout@v3
