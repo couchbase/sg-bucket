@@ -9,6 +9,7 @@
 package sgbucket
 
 import (
+	"context"
 	"errors"
 	"expvar"
 	"fmt"
@@ -74,7 +75,7 @@ type DynamicDataStoreBucket interface {
 // MutationFeedStore is a store that supports a DCP or TAP streaming mutation feed.
 type MutationFeedStore interface {
 	GetMaxVbno() (uint16, error)
-	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
+	StartDCPFeed(ctx context.Context, args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
 	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
 }
 
