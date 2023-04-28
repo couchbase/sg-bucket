@@ -247,6 +247,9 @@ var ErrKeyExists = errors.New("Key exists")
 // persistent or indexable within the timeout period.
 var ErrTimeout = errors.New("Timeout")
 
+// Returning this from an update callback causes the function to re-fetch the doc and try again.
+var ErrCasFailureShouldRetry = errors.New("CAS failure should retry")
+
 type ViewError struct {
 	From   string
 	Reason string
