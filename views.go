@@ -13,8 +13,8 @@ package sgbucket
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
-	"strconv"
 
 	"gopkg.in/couchbase/gocb.v1"
 )
@@ -44,8 +44,11 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 	ds DataStore, reduceFunction string) (ViewResult, error) {
 	includeDocs := false
 	limit := 0
-	reverse := false
+	descending := false
 	reduce := true
+	var minkey, maxkey any
+	inclusiveStart := true
+	inclusiveEnd := true
 
 	if params != nil {
 		includeDocs, _ = params["include_docs"].(bool)
@@ -58,71 +61,47 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 			}
 		}
 
-		reverse, _ = params["reverse"].(bool)
+		if key := params["key"]; key != nil {
+			minkey = key
+			maxkey = key
+		} else {
+			minkey = params["startkey"]
+			if minkey == nil {
+				minkey = params["start_key"] // older synonym
+			}
+			maxkey = params["endkey"]
+			if maxkey == nil {
+				maxkey = params["end_key"]
+			}
+			if value, ok := params["inclusive_end"].(bool); ok {
+				inclusiveEnd = value
+			}
+		}
+		descending, _ = params["descending"].(bool)
+		if descending {
+			temp := minkey
+			minkey = maxkey
+			maxkey = temp
+			inclusiveStart = inclusiveEnd
+			inclusiveEnd = true
+		}
+
 		if reduceParam, found := params["reduce"].(bool); found {
 			reduce = reduceParam
 		}
 	}
 
-	if reverse {
-		//TODO: Apply "reverse" option
-		return result, fmt.Errorf("Reverse is not supported yet, sorry")
-	}
-
-	startkey := params["startkey"]
-	if startkey == nil {
-		startkey = params["start_key"] // older synonym
-	}
-	endkey := params["endkey"]
-	if endkey == nil {
-		endkey = params["end_key"]
-	}
-	inclusiveEnd := true
-	if key := params["key"]; key != nil {
-		startkey = key
-		endkey = key
-	} else {
-		if value, ok := params["inclusive_end"].(bool); ok {
-			inclusiveEnd = value
-		}
-	}
-
-	var collator JSONCollator
-
 	if keys, ok := params["keys"].([]interface{}); ok {
-		filteredRows := make(ViewRows, 0)
-		for _, targetKey := range keys {
-			i := sort.Search(len(result.Rows), func(i int) bool {
-				return collator.Collate(result.Rows[i].Key, targetKey) >= 0
-			})
-			if i < len(result.Rows) && collator.Collate(result.Rows[i].Key, targetKey) == 0 {
-				filteredRows = append(filteredRows, result.Rows[i])
-			}
-		}
-		result.Rows = filteredRows
+		result.FilterKeys(keys)
 	}
 
-	if startkey != nil {
-		i := sort.Search(len(result.Rows), func(i int) bool {
-			return collator.Collate(result.Rows[i].Key, startkey) >= 0
-		})
-		result.Rows = result.Rows[i:]
-	}
+	result.SetStartKey(minkey, inclusiveStart)
 
 	if limit > 0 && len(result.Rows) > limit {
 		result.Rows = result.Rows[:limit]
 	}
 
-	if endkey != nil {
-		limit := 0
-		if !inclusiveEnd {
-			limit = -1
-		}
-		i := sort.Search(len(result.Rows), func(i int) bool {
-			return collator.Collate(result.Rows[i].Key, endkey) > limit
-		})
-		result.Rows = result.Rows[:i]
-	}
+	result.SetEndKey(maxkey, inclusiveEnd)
 
 	if includeDocs {
 		newRows := make(ViewRows, len(result.Rows))
@@ -137,6 +116,7 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 			newRows[i].Doc = &parsedDoc
 		}
 		result.Rows = newRows
+		result.collationKeys = nil
 	}
 
 	if reduce && reduceFunction != "" {
@@ -145,7 +125,13 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 		}
 	}
 
+	if descending {
+		result.ReverseRows()
+	}
+
 	result.TotalRows = len(result.Rows)
+	result.Collator.Clear()
+	result.collationKeys = nil // not needed any more
 	logg("\t... view returned %d rows", result.TotalRows)
 	return result, nil
 }
@@ -198,12 +184,14 @@ func ReduceViewResult(reduceFunction string, params map[string]interface{}, resu
 		}
 		outRow.Key = key
 		result.Rows = append(outRows, outRow)
+		result.collationKeys = nil
 	} else {
 		row, err := reduceFun(result.Rows)
 		if err != nil {
 			return err
 		}
 		result.Rows = []*ViewRow{row}
+		result.collationKeys = nil
 	}
 	return nil
 }
@@ -224,37 +212,54 @@ func ReduceFunc(reduceFunction string) (func([]*ViewRow) (*ViewRow, error), erro
 			for _, row := range rows {
 				// This could theoretically know how to unwrap our [channels, value]
 				// design_doc emit wrapper, but even so reduce would remain admin only.
-				total += collationToFloat64(row.Value)
+				if n, err := interfaceToFloat64(row.Value); err == nil {
+					total += n
+				} else {
+					return nil, err
+				}
 			}
 			return &ViewRow{Value: total}, nil
 		}, nil
 	default:
 		// TODO: Implement other reduce functions!
-		return nil, fmt.Errorf("Sgbucket only supports _count and _sum reduce functions")
+		return nil, fmt.Errorf("sgbucket only supports _count and _sum reduce functions")
 	}
 }
 
-func interfaceToInt(value interface{}) (int, error) {
-	switch typeValue := value.(type) {
-	case int:
-		return typeValue, nil
-	case int32:
-		return int(typeValue), nil
-	case int64:
-		return int(typeValue), nil
-	case uint32:
-		return int(typeValue), nil
-	case uint64:
-		return int(typeValue), nil
-	case string:
-		i, err := strconv.Atoi(typeValue)
-		return i, err
-	default:
-		return 0, fmt.Errorf("Unable to convert %v (%T) -> int.", value, value)
+func interfaceToInt(value interface{}) (i int, err error) {
+	ref := reflect.ValueOf(value)
+	if ref.CanInt() {
+		i = int(ref.Int())
+	} else if ref.CanFloat() {
+		i = int(ref.Float())
+	} else if ref.CanUint() {
+		i = int(ref.Uint())
+	} else {
+		err = fmt.Errorf("unable to convert %v (%T) to int", value, value)
 	}
+	return
+}
+
+func interfaceToFloat64(value any) (f float64, err error) {
+	ref := reflect.ValueOf(value)
+	if ref.CanInt() {
+		f = float64(ref.Int())
+	} else if ref.CanFloat() {
+		f = ref.Float()
+	} else if ref.CanUint() {
+		f = float64(ref.Uint())
+	} else {
+		err = fmt.Errorf("unable to convert %v (%T) to float64", value, value)
+	}
+	return
 }
 
 //////// VIEW RESULT: (implementation of sort.Interface interface)
+
+func (result *ViewResult) Sort() {
+	result.makeCollationKeys()
+	sort.Sort(result)
+}
 
 func (result *ViewResult) Len() int {
 	return len(result.Rows)
@@ -264,10 +269,95 @@ func (result *ViewResult) Swap(i, j int) {
 	temp := result.Rows[i]
 	result.Rows[i] = result.Rows[j]
 	result.Rows[j] = temp
+	if result.collationKeys != nil {
+		temp := result.collationKeys[i]
+		result.collationKeys[i] = result.collationKeys[j]
+		result.collationKeys[j] = temp
+	}
 }
 
 func (result *ViewResult) Less(i, j int) bool {
-	return result.Collator.Collate(result.Rows[i].Key, result.Rows[j].Key) < 0
+	return result.Collator.collate(&result.collationKeys[i], &result.collationKeys[j]) < 0
+}
+
+func (result *ViewResult) makeCollationKeys() {
+	if result.collationKeys == nil && !result.reversed {
+		keys := make([]preCollated, len(result.Rows))
+		for i, row := range result.Rows {
+			keys[i] = preCollate(row.Key)
+		}
+		result.collationKeys = keys
+	}
+}
+
+// Removes all the rows whose keys do not appear in the array.
+func (result *ViewResult) FilterKeys(keys []any) {
+	if keys != nil {
+		result.makeCollationKeys()
+		filteredRows := make(ViewRows, 0, len(keys))
+		filteredCollationKeys := make([]preCollated, 0, len(keys))
+		for _, targetKey := range keys {
+			targetColl := preCollate(targetKey)
+			i, found := sort.Find(len(result.Rows), func(i int) int {
+				return result.Collator.collate(&targetColl, &result.collationKeys[i])
+			})
+			if found {
+				filteredRows = append(filteredRows, result.Rows[i])
+				filteredCollationKeys = append(filteredCollationKeys, result.collationKeys[i])
+			}
+		}
+		result.Rows = filteredRows
+		result.collationKeys = filteredCollationKeys
+	}
+}
+
+// Removes all the rows whose keys are less than `startkey`
+// If `inclusive` is false, it also removes rows whose keys are equal to `startkey`.
+func (result *ViewResult) SetStartKey(startkey any, inclusive bool) {
+	if startkey != nil {
+		result.makeCollationKeys()
+		startColl := preCollate(startkey)
+		limit := 0
+		if inclusive {
+			limit = -1
+		}
+		i := sort.Search(len(result.Rows), func(i int) bool {
+			return result.Collator.collate(&result.collationKeys[i], &startColl) > limit
+		})
+		result.Rows = result.Rows[i:]
+		result.collationKeys = result.collationKeys[i:]
+	}
+}
+
+// Removes all the rows whose keys are greater than `endkey`.
+// If `inclusive` is false, it also removes rows whose keys are equal to `endkey`.
+func (result *ViewResult) SetEndKey(endkey any, inclusive bool) {
+	if endkey != nil {
+		result.makeCollationKeys()
+		endColl := preCollate(endkey)
+		limit := 0
+		if !inclusive {
+			limit = -1
+		}
+		i := sort.Search(len(result.Rows), func(i int) bool {
+			return result.Collator.collate(&result.collationKeys[i], &endColl) > limit
+		})
+		result.Rows = result.Rows[:i]
+		result.collationKeys = result.collationKeys[:i]
+	}
+}
+
+func (result *ViewResult) ReverseRows() {
+	// Note: Can't reverse result.Rows in place because it'd mess with any other copy of this
+	// ViewResult (they share the same underlying array.)
+	n := len(result.Rows)
+	newRows := make([]*ViewRow, n)
+	for i, row := range result.Rows {
+		newRows[n-1-i] = row
+	}
+	result.Rows = newRows
+	result.reversed = !result.reversed
+	result.collationKeys = nil
 }
 
 // ViewResult: Implementation of the interface

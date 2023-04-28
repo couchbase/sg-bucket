@@ -193,12 +193,14 @@ const (
 
 // Result of a view query.
 type ViewResult struct {
-	TotalRows int         `json:"total_rows"`
-	Rows      ViewRows    `json:"rows"`
-	Errors    []ViewError `json:"errors,omitempty"`
-	Collator  JSONCollator
-	iterIndex int   // Used to support iterator interface
-	iterErr   error // Error encountered during iteration
+	TotalRows     int         `json:"total_rows"`
+	Rows          ViewRows    `json:"rows"`
+	Errors        []ViewError `json:"errors,omitempty"`
+	Collator      JSONCollator
+	iterIndex     int   // Used to support iterator interface
+	iterErr       error // Error encountered during iteration
+	collationKeys []preCollated
+	reversed      bool
 }
 
 type ViewRows []*ViewRow
@@ -218,6 +220,15 @@ type MissingError struct {
 
 func (err MissingError) Error() string {
 	return fmt.Sprintf("key %q missing", err.Key)
+}
+
+// Type of error returned by Bucket API when an Xattr is missing
+type XattrMissingError struct {
+	Key, XattrKey string
+}
+
+func (err XattrMissingError) Error() string {
+	return fmt.Sprintf("key %q's xattr %q missing", err.Key, err.XattrKey)
 }
 
 type BulkSetEntry struct {

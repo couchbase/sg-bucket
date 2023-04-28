@@ -30,6 +30,8 @@ func init() {
 		{true, false, 1},
 		{false, true, -1},
 		{nil, float64(17), -1},
+		{4321, 4321, 0},
+		{int32(4321), uint16(4000), 1},
 		{float64(1), float64(1), 0},
 		{float64(123), float64(1), 1},
 		{float64(123), 0123.0, 0},

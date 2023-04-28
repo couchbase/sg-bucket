@@ -23,6 +23,12 @@ type JSONCollator struct {
 	stringCollator *collate.Collator
 }
 
+// A predigested form of a collatable value; it's faster to compare two of these.
+type preCollated struct {
+	tok token // type identifier
+	val any   // canonical form of value: float64, string, or []any
+}
+
 func defaultLocale() language.Tag {
 	l, e := language.Parse("icu")
 	if e != nil {
@@ -31,7 +37,7 @@ func defaultLocale() language.Tag {
 	return l
 }
 
-func CollateJSON(key1, key2 interface{}) int {
+func CollateJSON(key1, key2 any) int {
 	var collator JSONCollator
 	return collator.Collate(key1, key2)
 }
@@ -42,23 +48,27 @@ func (c *JSONCollator) Clear() {
 
 // CouchDB-compatible collation/comparison of JSON values.
 // See: http://wiki.apache.org/couchdb/View_collation#Collation_Specification
-func (c *JSONCollator) Collate(key1, key2 interface{}) int {
-	type1 := collationType(key1)
-	type2 := collationType(key2)
-	if type1 != type2 {
-		return compareTokens(type1, type2)
+func (c *JSONCollator) Collate(key1, key2 any) int {
+	pc1 := preCollate(key1)
+	pc2 := preCollate(key2)
+	return c.collate(&pc1, &pc2)
+}
+
+func (c *JSONCollator) collate(key1, key2 *preCollated) int {
+	if key1.tok != key2.tok {
+		return compareTokens(key1.tok, key2.tok)
 	}
-	switch type1 {
+	switch key1.tok {
 	case kNull, kFalse, kTrue:
 		return 0
 	case kNumber:
-		return compareFloats(collationToFloat64(key1), collationToFloat64(key2))
+		return compareNumbers(key1.val.(float64), key2.val.(float64))
 	case kString:
-		return c.compareStrings(key1.(string), key2.(string))
+		return c.compareStrings(key1.val.(string), key2.val.(string))
 	case kArray:
 		// Handle the case where a walrus bucket is returning a []float64
-		array1 := toSliceOfInterface(key1)
-		array2 := toSliceOfInterface(key2)
+		array1 := key1.val.([]any)
+		array2 := key2.val.([]any)
 		for i, item1 := range array1 {
 			if i >= len(array2) {
 				return 1
@@ -67,41 +77,76 @@ func (c *JSONCollator) Collate(key1, key2 interface{}) int {
 				return cmp
 			}
 		}
-		return compareInts(len(array1), len(array2))
+		return compareNumbers(len(array1), len(array2))
 	case kObject:
 		return 0 // ignore ordering for catch-all stuff
+	default:
+		panic("bogus collationType")
 	}
-	panic("bogus collationType")
 }
 
-func collationType(value interface{}) token {
+// Converts an arbitrary value into a form that's faster to use in collations.
+func preCollate(value any) (result preCollated) {
 	if value == nil {
-		return kNull
+		return preCollated{kNull, nil}
 	}
 
-	v := reflect.ValueOf(value)
-	switch v.Kind() {
+	ref := reflect.ValueOf(value)
+	switch ref.Kind() {
 	case reflect.Bool:
-		if !v.Bool() {
-			return kFalse
+		if ref.Bool() {
+			result.tok = kTrue
+		} else {
+			result.tok = kFalse
 		}
-		return kTrue
-	case reflect.Float64, reflect.Uint64, reflect.Uint16:
-		return kNumber
+	case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
+		result.tok = kNumber
+		result.val = float64(ref.Int())
+	case reflect.Uint, reflect.Uint64, reflect.Uint32, reflect.Uint16, reflect.Uint8:
+		result.tok = kNumber
+		result.val = float64(ref.Uint())
+	case reflect.Float64, reflect.Float32:
+		result.tok = kNumber
+		result.val = ref.Float()
 	case reflect.String:
-		//json.Number is a string type from the reflect package, need to do a specific type check to identify it
-		switch value.(type) {
-		case json.Number:
-			return kNumber
+		result.tok = kString
+		result.val = value
+		if jnum, ok := value.(json.Number); ok {
+			//json.Number is actually a string, but can be parsed to a number
+			if f, err := jnum.Float64(); err == nil {
+				result.tok = kNumber
+				result.val = f
+			} else if i, err := jnum.Int64(); err == nil {
+				result.tok = kNumber
+				result.val = float64(i)
+			}
 		}
-		return kString
 	case reflect.Slice:
-		return kArray
+		slice, ok := value.([]any)
+		if !ok {
+			len := ref.Len()
+			slice := make([]any, len)
+			for i := 0; i < len; i++ {
+				slice[i] = ref.Index(i).Interface()
+			}
+		}
+		result.tok = kArray
+		result.val = slice
 	case reflect.Map:
-		return kObject
+		result.tok = kObject
+	default:
+		panic(fmt.Sprintf("collation doesn't understand %+v (%T)", value, value))
 	}
+	return
+}
 
-	panic(fmt.Sprintf("collationType doesn't understand %+v (%T)", value, value))
+func compareNumbers[N ~int | ~int8 | ~int64 | ~float64](n1 N, n2 N) int {
+	if n1 < n2 {
+		return -1
+	} else if n1 > n2 {
+		return 1
+	}
+	return 0
 }
 
 func (c *JSONCollator) compareStrings(s1, s2 string) int {
@@ -111,66 +156,4 @@ func (c *JSONCollator) compareStrings(s1, s2 string) int {
 		c.stringCollator = stringCollator
 	}
 	return stringCollator.CompareString(s1, s2)
-}
-
-func collationToFloat64(value interface{}) float64 {
-	if i, ok := value.(uint64); ok {
-		return float64(i)
-	}
-	if i, ok := value.(uint16); ok {
-		return float64(i)
-	}
-	if n, ok := value.(float64); ok {
-		return n
-	}
-	if n, ok := value.(json.Number); ok {
-		rv, err := n.Float64()
-		if err != nil {
-			panic(err)
-		}
-		return rv
-	}
-	panic(fmt.Sprintf("collationToFloat64 doesn't understand %+v", value))
-}
-
-func compareInts(n1, n2 int) int {
-	if n1 < n2 {
-		return -1
-	} else if n1 > n2 {
-		return 1
-	}
-	return 0
-}
-
-func compareFloats(n1, n2 float64) int {
-	if n1 < n2 {
-		return -1
-	} else if n1 > n2 {
-		return 1
-	}
-	return 0
-}
-
-func toSliceOfInterface(slice interface{}) []interface{} {
-
-	ret, ok := slice.([]interface{})
-	if ok {
-		return ret
-	}
-
-	s := reflect.ValueOf(slice)
-
-	switch s.Kind() {
-	case reflect.Slice:
-		ret = make([]interface{}, s.Len())
-
-		//Can't range over s
-		for i := 0; i < s.Len(); i++ {
-			ret[i] = s.Index(i).Interface()
-		}
-
-		return ret
-	default:
-		panic("toSliceOfInterface() given a non-slice type")
-	}
 }

@@ -9,6 +9,7 @@
 package sgbucket
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -62,6 +63,14 @@ type JSMapFunction struct {
 	*JSServer
 }
 
+type JSMapFunctionInput struct {
+	Doc    string            // Doc body
+	DocID  string            // Doc ID
+	VbNo   uint32            // Vbucket number
+	VbSeq  uint64            // Sequence (CAS) in Vbucket
+	Xattrs map[string][]byte // Xattrs, each value marshaled to JSON
+}
+
 func NewJSMapFunction(fnSource string, timeout time.Duration) *JSMapFunction {
 	return &JSMapFunction{
 		JSServer: NewJSServer(fnSource, timeout, kTaskCacheSize,
@@ -72,24 +81,36 @@ func NewJSMapFunction(fnSource string, timeout time.Duration) *JSMapFunction {
 }
 
 // Calls a jsMapTask.
-func (mapper *JSMapFunction) CallFunction(doc string, docid string, vbNo uint32, vbSeq uint64) ([]*ViewRow, error) {
-	result1, err := mapper.Call(JSONString(doc), MakeMeta(docid, vbNo, vbSeq))
+func (mapper *JSMapFunction) CallFunction(input *JSMapFunctionInput) ([]*ViewRow, error) {
+	result1, err := mapper.Call(JSONString(input.Doc), MakeMeta(input))
 	if err != nil {
 		return nil, err
 	}
 	rows := result1.([]*ViewRow)
 	for i, _ := range rows {
-		rows[i].ID = docid
+		rows[i].ID = input.DocID
 	}
 	return rows, nil
 }
 
 // Returns a Couchbase-compatible 'meta' object, given a document ID
-func MakeMeta(docid string, vbNo uint32, vbSeq uint64) map[string]interface{} {
-	return map[string]interface{}{
-		"id":  docid,
-		"vb":  uint32(vbNo),  // convert back to well known type
-		"seq": uint64(vbSeq), // ditto
+func MakeMeta(input *JSMapFunctionInput) map[string]interface{} {
+	meta := map[string]interface{}{
+		"id":  input.DocID,
+		"vb":  input.VbNo,
+		"seq": input.VbSeq,
 	}
-
+	if len(input.Xattrs) > 0 {
+		xattrs := map[string]any{}
+		for key, data := range input.Xattrs {
+			var value any
+			err := json.Unmarshal(data, &value)
+			if err != nil {
+				panic("Can't unmarshal xattrs") //TEMP
+			}
+			xattrs[key] = value
+		}
+		meta["xattrs"] = xattrs
+	}
+	return meta
 }
