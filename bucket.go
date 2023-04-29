@@ -193,14 +193,14 @@ const (
 
 // Result of a view query.
 type ViewResult struct {
-	TotalRows     int         `json:"total_rows"`
-	Rows          ViewRows    `json:"rows"`
-	Errors        []ViewError `json:"errors,omitempty"`
-	Collator      JSONCollator
-	iterIndex     int   // Used to support iterator interface
-	iterErr       error // Error encountered during iteration
-	collationKeys []preCollated
-	reversed      bool
+	TotalRows     int           `json:"total_rows"`
+	Rows          ViewRows      `json:"rows"` // Note: Array may be shared between ViewResults
+	Errors        []ViewError   `json:"errors,omitempty"`
+	Collator      JSONCollator  // Performs Unicode string comparisons
+	iterIndex     int           // Used to support iterator interface
+	iterErr       error         // Error encountered during iteration
+	collationKeys []preCollated // Parallel array of cached collation hints for ViewRows
+	reversed      bool          // True if the rows have been reversed and are no longer sorted
 }
 
 type ViewRows []*ViewRow

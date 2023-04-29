@@ -32,35 +32,23 @@ func CheckDDoc(value interface{}) (*DesignDoc, error) {
 	}
 
 	if design.Language != "" && design.Language != "javascript" {
-		return nil, fmt.Errorf("Lolrus design docs don't support language %q",
+		return nil, fmt.Errorf("walrus design docs don't support language %q",
 			design.Language)
 	}
 
 	return &design, nil
 }
 
-// Applies view params (startkey/endkey, limit, etc) against a ViewResult.
-func ProcessViewResult(result ViewResult, params map[string]interface{},
-	ds DataStore, reduceFunction string) (ViewResult, error) {
-	includeDocs := false
-	limit := 0
+// Applies view params (startkey/endkey, limit, etc) to a ViewResult.
+func (result *ViewResult) Process(params map[string]interface{},
+	ds DataStore, reduceFunction string) error {
 	descending := false
 	reduce := true
-	var minkey, maxkey any
-	inclusiveStart := true
-	inclusiveEnd := true
 
 	if params != nil {
-		includeDocs, _ = params["include_docs"].(bool)
-
-		if plimit, ok := params["limit"]; ok {
-			if pLimitInt, err := interfaceToInt(plimit); err == nil {
-				limit = pLimitInt
-			} else {
-				logg("Unsupported type for view limit parameter: %T  %v", plimit, err)
-			}
-		}
-
+		var minkey, maxkey any
+		inclusiveStart := true
+		inclusiveEnd := true
 		if key := params["key"]; key != nil {
 			minkey = key
 			maxkey = key
@@ -77,6 +65,7 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 				inclusiveEnd = value
 			}
 		}
+
 		descending, _ = params["descending"].(bool)
 		if descending {
 			temp := minkey
@@ -86,42 +75,50 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 			inclusiveEnd = true
 		}
 
+		if keys, ok := params["keys"].([]interface{}); ok {
+			result.FilterKeys(keys)
+		}
+
+		result.SetStartKey(minkey, inclusiveStart)
+
+		if plimit, ok := params["limit"]; ok {
+			if limit, err := interfaceToInt(plimit); err == nil {
+				if limit > 0 && len(result.Rows) > limit {
+					result.Rows = result.Rows[:limit]
+				}
+			} else {
+				logg("Unsupported type for view limit parameter: %T  %v", plimit, err)
+				return err
+			}
+		}
+
+		result.SetEndKey(maxkey, inclusiveEnd)
+
+		if includeDocs, _ := params["include_docs"].(bool); includeDocs {
+			// Make a new Rows array since the current one may be shared
+			newRows := make(ViewRows, len(result.Rows))
+			for i, row := range result.Rows {
+				//OPT: This may unmarshal the same doc more than once
+				var parsedDoc interface{}
+				_, err := ds.Get(row.ID, &parsedDoc)
+				if err != nil {
+					return err
+				}
+				newRows[i] = row
+				newRows[i].Doc = &parsedDoc
+			}
+			result.Rows = newRows
+			result.collationKeys = nil
+		}
+
 		if reduceParam, found := params["reduce"].(bool); found {
 			reduce = reduceParam
 		}
 	}
 
-	if keys, ok := params["keys"].([]interface{}); ok {
-		result.FilterKeys(keys)
-	}
-
-	result.SetStartKey(minkey, inclusiveStart)
-
-	if limit > 0 && len(result.Rows) > limit {
-		result.Rows = result.Rows[:limit]
-	}
-
-	result.SetEndKey(maxkey, inclusiveEnd)
-
-	if includeDocs {
-		newRows := make(ViewRows, len(result.Rows))
-		for i, row := range result.Rows {
-			//OPT: This may unmarshal the same doc more than once
-			var parsedDoc interface{}
-			_, err := ds.Get(row.ID, &parsedDoc)
-			if err != nil {
-				return result, err
-			}
-			newRows[i] = row
-			newRows[i].Doc = &parsedDoc
-		}
-		result.Rows = newRows
-		result.collationKeys = nil
-	}
-
 	if reduce && reduceFunction != "" {
-		if err := ReduceViewResult(reduceFunction, params, &result); err != nil {
-			return result, err
+		if err := result.Reduce(reduceFunction, params); err != nil {
+			return err
 		}
 	}
 
@@ -133,16 +130,17 @@ func ProcessViewResult(result ViewResult, params map[string]interface{},
 	result.Collator.Clear()
 	result.collationKeys = nil // not needed any more
 	logg("\t... view returned %d rows", result.TotalRows)
-	return result, nil
+	return nil
 }
 
-func ReduceViewResult(reduceFunction string, params map[string]interface{}, result *ViewResult) error {
+// Applies a reduce function to a view result, modifying it in place.
+func (result *ViewResult) Reduce(reduceFunction string, params map[string]interface{}) error {
 	reduceFun, compileErr := ReduceFunc(reduceFunction)
 	if compileErr != nil {
 		return compileErr
 	}
 	groupLevel := 0
-	if params["group"] != nil && params["group"].(bool) == true {
+	if params["group"] != nil && params["group"].(bool) {
 		groupLevel = -1
 	} else if params["group_level"] != nil {
 		groupLevel = int(params["group_level"].(uint64))
@@ -254,42 +252,6 @@ func interfaceToFloat64(value any) (f float64, err error) {
 	return
 }
 
-//////// VIEW RESULT: (implementation of sort.Interface interface)
-
-func (result *ViewResult) Sort() {
-	result.makeCollationKeys()
-	sort.Sort(result)
-}
-
-func (result *ViewResult) Len() int {
-	return len(result.Rows)
-}
-
-func (result *ViewResult) Swap(i, j int) {
-	temp := result.Rows[i]
-	result.Rows[i] = result.Rows[j]
-	result.Rows[j] = temp
-	if result.collationKeys != nil {
-		temp := result.collationKeys[i]
-		result.collationKeys[i] = result.collationKeys[j]
-		result.collationKeys[j] = temp
-	}
-}
-
-func (result *ViewResult) Less(i, j int) bool {
-	return result.Collator.collate(&result.collationKeys[i], &result.collationKeys[j]) < 0
-}
-
-func (result *ViewResult) makeCollationKeys() {
-	if result.collationKeys == nil && !result.reversed {
-		keys := make([]preCollated, len(result.Rows))
-		for i, row := range result.Rows {
-			keys[i] = preCollate(row.Key)
-		}
-		result.collationKeys = keys
-	}
-}
-
 // Removes all the rows whose keys do not appear in the array.
 func (result *ViewResult) FilterKeys(keys []any) {
 	if keys != nil {
@@ -360,7 +322,43 @@ func (result *ViewResult) ReverseRows() {
 	result.collationKeys = nil
 }
 
-// ViewResult: Implementation of the interface
+func (result *ViewResult) makeCollationKeys() {
+	if result.collationKeys == nil && !result.reversed {
+		keys := make([]preCollated, len(result.Rows))
+		for i, row := range result.Rows {
+			keys[i] = preCollate(row.Key)
+		}
+		result.collationKeys = keys
+	}
+}
+
+//////// ViewResult: implementation of sort.Interface interface
+
+func (result *ViewResult) Sort() {
+	result.makeCollationKeys()
+	sort.Sort(result)
+}
+
+func (result *ViewResult) Len() int {
+	return len(result.Rows)
+}
+
+func (result *ViewResult) Swap(i, j int) {
+	temp := result.Rows[i]
+	result.Rows[i] = result.Rows[j]
+	result.Rows[j] = temp
+	if result.collationKeys != nil {
+		temp := result.collationKeys[i]
+		result.collationKeys[i] = result.collationKeys[j]
+		result.collationKeys[j] = temp
+	}
+}
+
+func (result *ViewResult) Less(i, j int) bool {
+	return result.Collator.collate(&result.collationKeys[i], &result.collationKeys[j]) < 0
+}
+
+//////// ViewResult: Implementation of QueryResultIterator interface
 
 // Note: iterIndex is a 1-based counter, for consistent error handling w/ gocb's iterators
 func (r *ViewResult) NextBytes() []byte {
@@ -395,11 +393,7 @@ func (r *ViewResult) Next(valuePtr interface{}) bool {
 	}
 
 	r.iterErr = json.Unmarshal(row, valuePtr)
-	if r.iterErr != nil {
-		return false
-	}
-
-	return true
+	return r.iterErr == nil
 }
 
 func (r *ViewResult) Close() error {
@@ -424,11 +418,6 @@ func (r *ViewResult) One(valuePtr interface{}) error {
 	}
 
 	// Ignore any errors occurring after we already have our result
-	err := r.Close()
-	if err != nil {
-		// Return no error as we got the one result already.
-		return nil
-	}
-
+	_ = r.Close()
 	return nil
 }
