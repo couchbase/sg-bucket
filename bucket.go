@@ -14,15 +14,6 @@ import (
 	"fmt"
 )
 
-// DataStoreName provides the methods that can give you each part of a data store.
-//
-// Each implementation is free to decide how to store the data store name, to avoid both sgbucket leaking into implementations,
-// and also reduce duplication for storing these values, in the event SDKs already hold copies of names internally.
-type DataStoreName interface {
-	ScopeName() string
-	CollectionName() string
-}
-
 // Raw representation of a bucket document - document body and xattr as bytes, along with cas.
 type BucketDocument struct {
 	Body      []byte
@@ -71,11 +62,23 @@ type DynamicDataStoreBucket interface {
 	DropDataStore(DataStoreName) error   // DropDataStore drops a DataStore from the bucket
 }
 
+type FeedType string
+
+const (
+	DcpFeedType FeedType = "dcp"
+	TapFeedType FeedType = "tap"
+)
+
 // MutationFeedStore is a store that supports a DCP or TAP streaming mutation feed.
 type MutationFeedStore interface {
 	GetMaxVbno() (uint16, error)
 	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
 	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
+}
+
+type MutationFeedStore2 interface {
+	MutationFeedStore
+	GetFeedType() FeedType
 }
 
 type TypedErrorStore interface {
@@ -97,6 +100,11 @@ type DataStore interface {
 	SubdocStore
 	TypedErrorStore
 	BucketStoreFeatureIsSupported
+}
+
+type Collection interface {
+	GetCollectionID() uint32
+	DataStore
 }
 
 // UpsertOptions are the options to use with the set operations
@@ -249,6 +257,20 @@ var ErrTimeout = errors.New("Timeout")
 
 // Returning this from an update callback causes the function to re-fetch the doc and try again.
 var ErrCasFailureShouldRetry = errors.New("CAS failure should retry")
+
+type DocTooBigErr struct{}
+
+func (err DocTooBigErr) Error() string {
+	return "document value too large"
+}
+
+type CasMismatchErr struct {
+	Expected, Actual uint64
+}
+
+func (err CasMismatchErr) Error() string {
+	return fmt.Sprintf("cas mismatch: expected %x, really %x", err.Expected, err.Actual)
+}
 
 type ViewError struct {
 	From   string

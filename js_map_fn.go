@@ -87,7 +87,7 @@ func (mapper *JSMapFunction) CallFunction(input *JSMapFunctionInput) ([]*ViewRow
 		return nil, err
 	}
 	rows := result1.([]*ViewRow)
-	for i, _ := range rows {
+	for i := range rows {
 		rows[i].ID = input.DocID
 	}
 	return rows, nil
