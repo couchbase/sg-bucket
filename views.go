@@ -97,15 +97,18 @@ func (result *ViewResult) Process(params map[string]interface{},
 		if includeDocs, _ := params["include_docs"].(bool); includeDocs {
 			// Make a new Rows array since the current one may be shared
 			newRows := make(ViewRows, len(result.Rows))
-			for i, row := range result.Rows {
-				//OPT: This may unmarshal the same doc more than once
-				var parsedDoc interface{}
-				_, err := ds.Get(row.ID, &parsedDoc)
-				if err != nil {
-					return err
+			for i, rowPtr := range result.Rows {
+				if rowPtr.Doc == nil {
+					//OPT: This may unmarshal the same doc more than once
+					newRow := *rowPtr
+					_, err := ds.Get(newRow.ID, &newRow.Doc)
+					if err != nil {
+						return err
+					}
+					newRows[i] = &newRow
+				} else {
+					newRows[i] = rowPtr
 				}
-				newRows[i] = row
-				newRows[i].Doc = &parsedDoc
 			}
 			result.Rows = newRows
 			result.collationKeys = nil
@@ -138,6 +141,9 @@ func (result *ViewResult) Reduce(reduceFunction string, params map[string]interf
 	reduceFun, compileErr := ReduceFunc(reduceFunction)
 	if compileErr != nil {
 		return compileErr
+	}
+	if len(result.Rows) == 0 {
+		return nil
 	}
 	groupLevel := 0
 	if params["group"] != nil && params["group"].(bool) {
