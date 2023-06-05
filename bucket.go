@@ -62,6 +62,11 @@ type DynamicDataStoreBucket interface {
 	DropDataStore(DataStoreName) error   // DropDataStore drops a DataStore from the bucket
 }
 
+// DeletableBucket describes a bucket that can be deleted (like Walrus)
+type DeletableBucket interface {
+	CloseAndDelete() error
+}
+
 type FeedType string
 
 const (
