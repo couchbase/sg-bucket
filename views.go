@@ -39,93 +39,139 @@ func CheckDDoc(value interface{}) (*DesignDoc, error) {
 	return &design, nil
 }
 
-// Applies view params (startkey/endkey, limit, etc) to a ViewResult.
-func (result *ViewResult) Process(params map[string]interface{},
-	ds DataStore, reduceFunction string) error {
-	descending := false
-	reduce := true
+// Parsed view parameters
+type ViewParams struct {
+	MinKey        any   // Minimum key, if non-nil
+	MaxKey        any   // Maximum key, if non-nil
+	IncludeMinKey bool  // Should key equal to MinKey be included?
+	IncludeMaxKey bool  // Should key equal to MaxKey be included?
+	Keys          []any // Specific keys, if non-nil
+	Descending    bool  // Results in descending order?
+	Limit         *int  // Maximum number of rows, if non-nil
+	IncludeDocs   bool  // Put doc body in `Document` field?
+	Reduce        bool  // Skip reduce?
+	GroupLevel    *int  // Level of grouping to apply, if non-nil
+}
 
-	if params != nil {
-		var minkey, maxkey any
-		inclusiveStart := true
-		inclusiveEnd := true
-		if key := params["key"]; key != nil {
-			minkey = key
-			maxkey = key
+// Interprets parameters from a JSON map and returns a ViewParams struct.
+func ParseViewParams(jsonParams map[string]any) (params ViewParams, err error) {
+	params = ViewParams{
+		IncludeMinKey: true,
+		IncludeMaxKey: true,
+		Reduce:        true,
+	}
+	if jsonParams != nil {
+		if keys, _ := jsonParams["keys"].([]any); keys != nil {
+			params.Keys = keys
+		} else if key := jsonParams["key"]; key != nil {
+			params.MinKey = key
+			params.MaxKey = key
 		} else {
-			minkey = params["startkey"]
-			if minkey == nil {
-				minkey = params["start_key"] // older synonym
+			params.MinKey = jsonParams["startkey"]
+			if params.MinKey == nil {
+				params.MinKey = jsonParams["start_key"] // older synonym
 			}
-			maxkey = params["endkey"]
-			if maxkey == nil {
-				maxkey = params["end_key"]
+			params.MaxKey = jsonParams["endkey"]
+			if params.MaxKey == nil {
+				params.MaxKey = jsonParams["end_key"]
 			}
-			if value, ok := params["inclusive_end"].(bool); ok {
-				inclusiveEnd = value
+			if value, ok := jsonParams["inclusive_end"].(bool); ok {
+				params.IncludeMaxKey = value
 			}
 		}
 
-		descending, _ = params["descending"].(bool)
-		if descending {
-			temp := minkey
-			minkey = maxkey
-			maxkey = temp
-			inclusiveStart = inclusiveEnd
-			inclusiveEnd = true
+		params.Descending, _ = jsonParams["descending"].(bool)
+		if params.Descending {
+			// Swap min/max if descending order
+			temp := params.MinKey
+			params.MinKey = params.MaxKey
+			params.MaxKey = temp
+			params.IncludeMinKey = params.IncludeMaxKey
+			params.IncludeMaxKey = true
 		}
 
-		if keys, ok := params["keys"].([]interface{}); ok {
-			result.FilterKeys(keys)
-		}
-
-		result.SetStartKey(minkey, inclusiveStart)
-
-		if plimit, ok := params["limit"]; ok {
-			if limit, err := interfaceToInt(plimit); err == nil {
-				if limit > 0 && len(result.Rows) > limit {
-					result.Rows = result.Rows[:limit]
-				}
+		if plimit, ok := jsonParams["limit"]; ok {
+			if limit, limiterr := interfaceToInt(plimit); limiterr == nil && limit > 0 {
+				params.Limit = &limit
 			} else {
-				logg("Unsupported type for view limit parameter: %T  %v", plimit, err)
-				return err
+				err = fmt.Errorf("invalid limit parameter in view query: %v", jsonParams["limit"])
+				return
 			}
 		}
 
-		result.SetEndKey(maxkey, inclusiveEnd)
+		params.IncludeDocs, _ = jsonParams["include_docs"].(bool)
 
-		if includeDocs, _ := params["include_docs"].(bool); includeDocs {
-			// Make a new Rows array since the current one may be shared
-			newRows := make(ViewRows, len(result.Rows))
-			for i, rowPtr := range result.Rows {
-				if rowPtr.Doc == nil {
-					//OPT: This may unmarshal the same doc more than once
-					newRow := *rowPtr
-					_, err := ds.Get(newRow.ID, &newRow.Doc)
-					if err != nil {
-						return err
-					}
-					newRows[i] = &newRow
+		if reduceParam, found := jsonParams["reduce"].(bool); found {
+			params.Reduce = reduceParam
+		}
+		if params.Reduce {
+			if jsonParams["group"] != nil && jsonParams["group"].(bool) {
+				var groupLevel int = 0
+				params.GroupLevel = &groupLevel
+			} else if jsonParams["group_level"] != nil {
+				groupLevel, groupErr := interfaceToInt(jsonParams["group_level"])
+				if groupErr == nil && groupLevel >= 0 {
+					params.GroupLevel = &groupLevel
 				} else {
-					newRows[i] = rowPtr
+					err = fmt.Errorf("invalid group_level parameter in view query: %v", jsonParams["group_level"])
+					return
 				}
 			}
-			result.Rows = newRows
-			result.collationKeys = nil
-		}
-
-		if reduceParam, found := params["reduce"].(bool); found {
-			reduce = reduceParam
 		}
 	}
+	return
+}
 
-	if reduce && reduceFunction != "" {
-		if err := result.Reduce(reduceFunction, params); err != nil {
+// Applies view params (startkey/endkey, limit, etc) to a ViewResult.
+func (result *ViewResult) Process(jsonParams map[string]interface{}, ds DataStore, reduceFunction string) error {
+	params, err := ParseViewParams(jsonParams)
+	if err != nil {
+		return err
+	}
+	return result.ProcessParsed(params, ds, reduceFunction)
+}
+
+func (result *ViewResult) ProcessParsed(params ViewParams, ds DataStore, reduceFunction string) error {
+
+	if params.Keys != nil {
+		result.FilterKeys(params.Keys)
+	}
+
+	result.SetStartKey(params.MinKey, params.IncludeMinKey)
+
+	if params.Limit != nil && *params.Limit < len(result.Rows) {
+		result.Rows = result.Rows[:*params.Limit]
+	}
+
+	result.SetEndKey(params.MaxKey, params.IncludeMaxKey)
+
+	if params.IncludeDocs {
+		// Make a new Rows array since the current one may be shared
+		newRows := make(ViewRows, len(result.Rows))
+		for i, rowPtr := range result.Rows {
+			if rowPtr.Doc == nil {
+				//OPT: This may unmarshal the same doc more than once
+				newRow := *rowPtr
+				_, err := ds.Get(newRow.ID, &newRow.Doc)
+				if err != nil {
+					return err
+				}
+				newRows[i] = &newRow
+			} else {
+				newRows[i] = rowPtr
+			}
+		}
+		result.Rows = newRows
+		result.collationKeys = nil
+	}
+
+	if params.Reduce && reduceFunction != "" {
+		if err := result.ReduceAndGroup(reduceFunction, params.GroupLevel); err != nil {
 			return err
 		}
 	}
 
-	if descending {
+	if params.Descending {
 		result.ReverseRows()
 	}
 
@@ -137,7 +183,18 @@ func (result *ViewResult) Process(params map[string]interface{},
 }
 
 // Applies a reduce function to a view result, modifying it in place.
-func (result *ViewResult) Reduce(reduceFunction string, params map[string]interface{}) error {
+func (result *ViewResult) Reduce(reduceFunction string, jsonParams map[string]interface{}) error {
+	params, err := ParseViewParams(jsonParams)
+	if err != nil {
+		return err
+	}
+	return result.ReduceAndGroup(reduceFunction, params.GroupLevel)
+}
+
+// Applies a reduce function to a view result, modifying it in place.
+// If the group level is non-nil, results will be grouped.
+// Group level 0 groups by the entire key; higher levels group by components of an array key.
+func (result *ViewResult) ReduceAndGroup(reduceFunction string, groupLevelOrNil *int) error {
 	reduceFun, compileErr := ReduceFunc(reduceFunction)
 	if compileErr != nil {
 		return compileErr
@@ -145,16 +202,11 @@ func (result *ViewResult) Reduce(reduceFunction string, params map[string]interf
 	if len(result.Rows) == 0 {
 		return nil
 	}
-	groupLevel := 0
-	if params["group"] != nil && params["group"].(bool) {
-		groupLevel = -1
-	} else if params["group_level"] != nil {
-		groupLevel = int(params["group_level"].(uint64))
-	}
-	if groupLevel != 0 {
+	if groupLevelOrNil != nil {
+		groupLevel := *groupLevelOrNil
 		var collator JSONCollator
 		key := result.Rows[0].Key
-		if groupLevel != -1 {
+		if groupLevel > 0 {
 			// don't try to cast key as a slice if group=true
 			key = keyPrefix(groupLevel, key)
 		}
@@ -162,7 +214,7 @@ func (result *ViewResult) Reduce(reduceFunction string, params map[string]interf
 		outRows := []*ViewRow{}
 		for _, row := range result.Rows {
 			inKey := row.Key
-			if groupLevel != -1 {
+			if groupLevel > 0 {
 				// don't try to cast key as a slice if group=true
 				inKey = keyPrefix(groupLevel, inKey)
 			}
