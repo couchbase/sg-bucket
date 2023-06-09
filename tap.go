@@ -18,16 +18,14 @@ import (
 	"time"
 )
 
-// Tap operation type (found in TapEvent)
+// Feed operation type (found in FeedEvent)
 type FeedOpcode uint8
 
 const (
-	FeedOpBeginBackfill = FeedOpcode(iota)
-	FeedOpEndBackfill
-	FeedOpMutation
-	FeedOpDeletion
-	FeedOpCheckpointStart
-	FeedOpCheckpointEnd
+	FeedOpBeginBackfill = FeedOpcode(iota) // Start of prior events
+	FeedOpEndBackfill                      // End of prior events
+	FeedOpMutation                         // A document was modified
+	FeedOpDeletion                         // A document was deleted
 )
 
 type FeedDataType = uint8
@@ -39,7 +37,7 @@ const (
 	FeedDataTypeXattr                           // Document has Xattrs
 )
 
-// A TAP notification of an operation on the server.
+// A notification of a change in a data store.
 type FeedEvent struct {
 	Opcode       FeedOpcode   // Type of event
 	Flags        uint32       // Item flags
@@ -61,19 +59,19 @@ type MutationFeed interface {
 	Close() error                  // Close the tap feed
 }
 
-// Parameters for requesting a TAP feed. Call DefaultTapArguments to get a default one.
+// Parameters for requesting a feed.
 type FeedArguments struct {
 	ID               string              // Feed ID, used to build unique identifier for DCP feed
-	Backfill         uint64              // Timestamp of oldest item to send. Use TapNoBackfill to suppress all past items.
+	Backfill         uint64              // Timestamp of oldest item to send. Use FeedNoBackfill to suppress all past items.
 	Dump             bool                // If set, server will disconnect after sending existing items.
 	KeysOnly         bool                // If true, client doesn't want values so server shouldn't send them.
-	Terminator       chan bool           // Feed will be terminated when this channel is closed (DCP Only)
+	Terminator       chan bool           // Feed will stop when this channel is closed (DCP Only)
 	DoneChan         chan struct{}       // DoneChan is closed when the mutation feed terminates.
 	CheckpointPrefix string              // DCP checkpoint key prefix
 	Scopes           map[string][]string // Collection names to stream - map keys are scopes
 }
 
-// Value for TapArguments.Backfill denoting that no past events at all should be sent.  FeedNoBackfill value
+// Value for FeedArguments.Backfill denoting that no past events at all should be sent.  FeedNoBackfill value
 // used as actual value for walrus, go-couchbase bucket, these event types aren't defined using usual approach
 const FeedNoBackfill = math.MaxUint64
 const FeedResume = 1
@@ -82,6 +80,7 @@ const FeedResume = 1
 // checkpoint persistence (used to avoid recursive checkpoint document processing)
 type FeedEventCallbackFunc func(event FeedEvent) bool
 
+// The name and value of an extended attribute (xattr)
 type Xattr struct {
 	Name  string
 	Value []byte

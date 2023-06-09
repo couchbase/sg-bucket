@@ -20,9 +20,9 @@ type DataStoreNameImpl struct {
 }
 
 const (
-	DefaultCollection        = "_default"
-	DefaultScope             = "_default"
-	ScopeCollectionSeparator = "."
+	DefaultCollection        = "_default" // Name of the default collection
+	DefaultScope             = "_default" // Name of the default collection
+	ScopeCollectionSeparator = "."        // Delimiter between scope & collection names
 )
 
 var dsNameRegexp = regexp.MustCompile("^[a-zA-Z0-9-][a-zA-Z0-9%_-]{0,250}$")
