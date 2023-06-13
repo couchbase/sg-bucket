@@ -355,7 +355,7 @@ type XattrStore interface {
 	// - opts: Options; use PreserveExpiry to avoid setting expiry
 	// - value: The raw value to set, or nil to *leave unchanged*
 	// - xattrValue: The raw xattr value to set, or nil to *delete*
-	// - isDelete: If true, doc must already be a tombstone // TODO: Is this true?
+	// - isDelete: // FIXME: the meaning of this is unknown...
 	// - deleteBody: If true, the document value will be deleted (set to nil)
 	WriteWithXattr(k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
 
