@@ -425,20 +425,6 @@ type FlushableStore interface {
 	Flush() error
 }
 
-// Common query iterator interface,
-// implemented by sgbucket.ViewResult, gocb.ViewResults, and gocb.QueryResults
-type QueryResultIterator interface {
-	// Unmarshals a single result row into valuePtr, and then closes the iterator.
-	One(valuePtr interface{}) error
-	// Unmarshals the next result row into valuePtr.
-	// Returns false when reaching end of result set.
-	Next(valuePtr interface{}) bool
-	// Retrieves raw bytes for the next result row.
-	NextBytes() []byte
-	// Closes the iterator.  Returns any row-level errors seen during iteration.
-	Close() error
-}
-
 // A set of option flags for the Write method.
 type WriteOptions int
 
