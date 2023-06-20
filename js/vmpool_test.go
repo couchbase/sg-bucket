@@ -68,7 +68,6 @@ func TestPoolsSequentially(t *testing.T) {
 
 func TestPoolsConcurrently(t *testing.T) {
 	maxProcs := runtime.GOMAXPROCS(0)
-	log.Printf("FYI, GOMAXPROCS = %d", maxProcs)
 	if !assert.GreaterOrEqual(t, maxProcs, 2, "Not enough OS threads available") {
 		return
 	}

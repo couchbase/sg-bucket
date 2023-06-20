@@ -13,10 +13,10 @@ package js
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 
-	"github.com/pkg/errors"
 	"github.com/robertkrimen/otto"
 
 	_ "github.com/robertkrimen/otto/underscore"

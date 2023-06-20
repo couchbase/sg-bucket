@@ -114,13 +114,7 @@ func newJSONString(ctx *v8.Context, val any) (*v8.Value, error) {
 // Returns an error back to a V8 caller.
 // Calls v8.Isolate.ThrowException, with the Go error's string as the message.
 func v8Throw(i *v8.Isolate, err error) *v8.Value {
-	var errStr string
-	// if httpErr, ok := err.(*base.HTTPError); ok {
-	// 	errStr = fmt.Sprintf("[%d] %s", httpErr.Status, httpErr.Message)
-	// } else {
-	errStr = err.Error()
-	// }
-	return i.ThrowException(newString(i, errStr))
+	return i.ThrowException(newString(i, err.Error()))
 }
 
 // Simple utility to wrap a function that returns a value and an error; returns just the value, panicking if there was an error.

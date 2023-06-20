@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	v8 "github.com/snej/v8go"
 )
 
@@ -123,7 +122,7 @@ func (vm *v8VM) release() {
 func (vm *v8VM) getTemplate(service *Service) (V8Template, error) {
 	var tmpl V8Template
 	if !vm.services.hasService(service) {
-		return nil, fmt.Errorf("unknown js.Service instance passed to VM")
+		return nil, fmt.Errorf("unknown js.Service instance passed to VM: %v", service)
 	}
 	if int(service.id) < len(vm.templates) {
 		tmpl = vm.templates[service.id]
@@ -134,7 +133,7 @@ func (vm *v8VM) getTemplate(service *Service) (V8Template, error) {
 			var err error
 			vm.setupScript, err = vm.iso.CompileUnboundScript(kSetupLoggingJS+kUnderscoreJS, "setupScript.js", v8.CompileOptions{})
 			if err != nil {
-				return nil, errors.Wrapf(err, "Couldn't compile setup script")
+				return nil, fmt.Errorf("Couldn't compile setup script: %w", err)
 			}
 		}
 

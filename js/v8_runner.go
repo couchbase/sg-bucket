@@ -15,11 +15,11 @@ package js
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	v8 "github.com/snej/v8go" // Docs: https://pkg.go.dev/github.com/snej/v8go
 )
 
@@ -32,22 +32,25 @@ type V8Runner struct {
 	Client   any          // You can put whatever you want here, to point back to your state
 }
 
-func newV8Runner(vm *v8VM, template V8Template, id serviceID) (*V8Runner, error) {
+func newV8Runner(vm *v8VM, template V8Template, id serviceID) (runner *V8Runner, err error) {
 	// Create a V8 Context and run the setup script in it:
 	ctx := v8.NewContext(vm.iso, template.Global())
+	defer func() {
+		if err != nil {
+			ctx.Close()
+		}
+	}()
 	if _, err := vm.setupScript.Run(ctx); err != nil {
-		return nil, errors.Wrap(err, "Unexpected error in JavaScript initialization code")
+		return nil, fmt.Errorf("Unexpected error in JavaScript initialization code: %w", err)
 	}
 
 	// Now run the service's script, which returns the service's main function:
 	result, err := template.Script().Run(ctx)
 	if err != nil {
-		ctx.Close()
 		return nil, fmt.Errorf("JavaScript error initializing %s: %w", template.Name(), err)
 	}
 	mainFn, err := result.AsFunction()
 	if err != nil {
-		ctx.Close()
 		return nil, fmt.Errorf("%s's script did not return a function: %w", template.Name(), err)
 	}
 

@@ -15,7 +15,6 @@ package js
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	v8 "github.com/snej/v8go"
 )
 
@@ -114,7 +113,7 @@ func (t *V8BasicTemplate) NewCallback(callback TemplateCallback) *v8.FunctionTem
 			if v8Result, newValErr := runner.NewValue(result); err == nil {
 				return v8Result
 			} else {
-				err = errors.Wrap(newValErr, "Could not convert a callback's result to JavaScript")
+				err = fmt.Errorf("Could not convert a callback's result to JavaScript: %w", newValErr)
 			}
 		}
 		return v8Throw(vm.iso, err)

@@ -68,10 +68,10 @@ func (vm *ottoVM) getRunner(service *Service) (Runner, error) {
 		return nil, fmt.Errorf("the js.VM has been closed")
 	}
 	if vm.curRunner != nil {
-		panic("illegal access to v8VM: already has a v8Runner")
+		panic("illegal access to ottoVM: already has a ottoRunner")
 	}
 	if !vm.services.hasService(service) {
-		return nil, fmt.Errorf("unknown js.Service instance passed to VM")
+		return nil, fmt.Errorf("unknown js.Service instance passed to VM: %v", service)
 	}
 	if service.v8Init != nil {
 		return nil, fmt.Errorf("js.Service has custom initialization not supported by Otto")
