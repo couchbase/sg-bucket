@@ -13,6 +13,7 @@ licenses/APL2.txt.
 package js
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"sync"
@@ -71,12 +72,12 @@ var V8 = &Engine{
 
 var v8Init sync.Once
 
-func v8VMFactory(engine *Engine, services *servicesConfiguration) VM {
+func v8VMFactory(ctx context.Context, engine *Engine, services *servicesConfiguration) VM {
 	v8Init.Do(func() {
 		v8.SetFlags(fmt.Sprintf("--stack_size=%d", V8StackSizeLimit/1024))
 	})
 	return &v8VM{
-		baseVM:    &baseVM{engine: engine, services: services},
+		baseVM:    &baseVM{ctx: ctx, engine: engine, services: services},
 		iso:       v8.NewIsolateWith(V8InitialHeap, V8MaxHeap), // The V8 v8VM
 		templates: []V8Template{},                              // Instantiated Services
 		runners:   []*V8Runner{},                               // Cached reusable Runners
@@ -207,7 +208,7 @@ func (vm *v8VM) withRunner(service *Service, fn func(Runner) (any, error)) (any,
 // Called by v8Runner.Return; either closes its V8 resources or saves it for reuse.
 // Also returns the v8VM to its Pool, if it came from one.
 func (vm *v8VM) returnRunner(r *V8Runner) {
-	r.goContext = nil
+	r.ctx = nil // clear any override
 	if vm.curRunner == r {
 		vm.iso.Unlock()
 		vm.curRunner = nil
@@ -226,15 +227,15 @@ func (vm *v8VM) returnRunner(r *V8Runner) {
 }
 
 // Returns the v8Runner that owns the given V8 Context.
-func (vm *v8VM) currentRunner(ctx *v8.Context) *V8Runner {
+func (vm *v8VM) currentRunner(v8ctx *v8.Context) *V8Runner {
 	// IMPORTANT: This is kind of a hack, but we can get away with it because a v8VM has only one
 	// active v8Runner at a time. If it were to be multiple Runners, we'd need to maintain a map
 	// from Contexts to Runners.
 	if vm.curRunner == nil {
-		panic(fmt.Sprintf("Unknown v8.Context passed to v8VM.currentRunner: %v, expected none", ctx))
+		panic(fmt.Sprintf("Unknown v8.Context passed to v8VM.currentRunner: %v, expected none", v8ctx))
 	}
-	if ctx != vm.curRunner.ctx {
-		panic(fmt.Sprintf("Unknown v8.Context passed to v8VM.currentRunner: %v, expected %v", ctx, vm.curRunner.ctx))
+	if v8ctx != vm.curRunner.v8ctx {
+		panic(fmt.Sprintf("Unknown v8.Context passed to v8VM.currentRunner: %v, expected %v", v8ctx, vm.curRunner.v8ctx))
 	}
 	return vm.curRunner
 }

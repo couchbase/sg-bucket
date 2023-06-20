@@ -22,6 +22,7 @@ import (
 // A thread-safe ServiceHost for Services and Runners that owns a set of VMs
 // and allocates an available one when a Runner is needed.
 type VMPool struct {
+	ctx       context.Context        // Caller-settable Context
 	maxInUse  int                    // Max number of simultaneously in-use VMs
 	services  *servicesConfiguration // Defines the services (owned VMs also have references)
 	tickets   chan bool              // Each item in this channel represents availability of a VM
@@ -31,13 +32,14 @@ type VMPool struct {
 	curInUse_ int                    // Current number of VMs "checked out"
 }
 
-func NewVMPool(typ *Engine, maxVMs int) *VMPool {
+func NewVMPool(ctx context.Context, typ *Engine, maxVMs int) *VMPool {
 	pool := new(VMPool)
-	pool.Init(typ, maxVMs)
+	pool.Init(ctx, typ, maxVMs)
 	return pool
 }
 
-func (pool *VMPool) Init(typ *Engine, maxVMs int) {
+func (pool *VMPool) Init(ctx context.Context, typ *Engine, maxVMs int) {
+	pool.ctx = ctx
 	pool.maxInUse = maxVMs
 	pool.services = &servicesConfiguration{}
 	pool.engine = typ
@@ -46,17 +48,18 @@ func (pool *VMPool) Init(typ *Engine, maxVMs int) {
 	for i := 0; i < maxVMs; i++ {
 		pool.tickets <- true
 	}
-	info(context.Background(), "js.VMPool: Init, max %d VMs", maxVMs)
+	info(pool.ctx, "js.VMPool: Init, max %d VMs", maxVMs)
 }
 
-func (pool *VMPool) Engine() *Engine { return pool.engine }
+func (pool *VMPool) Context() context.Context { return pool.ctx }
+func (pool *VMPool) Engine() *Engine          { return pool.engine }
 
 // Tears down a VMPool, freeing up its cached VMs.
 // It's a good idea to call this when using V8, as the VMs may be holding onto a lot of external
 // memory managed by V8, and this will clean up that memory sooner than Go's GC will.
 func (pool *VMPool) Close() {
 	if inUse := pool.InUseCount(); inUse > 0 {
-		warn(context.Background(), "A js.VMPool is being closed with %d VMs still in use", inUse)
+		warn(pool.ctx, "A js.VMPool is being closed with %d VMs still in use", inUse)
 	}
 
 	// First stop all waiting `Get` calls:
@@ -65,8 +68,7 @@ func (pool *VMPool) Close() {
 	// Now pull all the VMs out of the pool and close them.
 	// This isn't necessary, but it frees up memory sooner.
 	n := pool.closeAll()
-	info(context.Background(),
-		"js.VMPool.Close: Closed pool with %d VM(s)", n)
+	info(pool.ctx, "js.VMPool.Close: Closed pool with %d VM(s)", n)
 }
 
 // Returns the number of VMs currently in use.
@@ -79,8 +81,7 @@ func (pool *VMPool) InUseCount() int {
 // Closes all idle VMs cached by this pool. It will reallocate them when it needs to.
 func (pool *VMPool) PurgeUnusedVMs() {
 	n := pool.closeAll()
-	info(context.Background(),
-		"js.VMPool.PurgeUnusedVMs: Closed %d idle VM(s)", n)
+	info(pool.ctx, "js.VMPool.PurgeUnusedVMs: Closed %d idle VM(s)", n)
 }
 
 func (pool *VMPool) FindService(name string) *Service {
@@ -108,14 +109,12 @@ func (pool *VMPool) getVM(service *Service) (VM, error) {
 	vm, inUse := pool.pop(service)
 	if vm == nil {
 		// Nothing in the pool, so create a new VM instance.
-		vm = pool.engine.newVM(pool.services)
-		info(context.Background(),
-			"js.VMPool.getVM: No VMs free; created a new one")
+		vm = pool.engine.newVM(pool.ctx, pool.services)
+		info(pool.ctx, "js.VMPool.getVM: No VMs free; created a new one")
 	}
 
 	vm.setReturnToPool(pool)
-	debug(context.Background(),
-		"js.VMPool.getVM: %d/%d VMs now in use", inUse, pool.maxInUse)
+	debug(pool.ctx, "js.VMPool.getVM: %d/%d VMs now in use", inUse, pool.maxInUse)
 	return vm, nil
 }
 
@@ -125,8 +124,7 @@ func (pool *VMPool) returnVM(vm VM) {
 		vm.setReturnToPool(nil)
 
 		inUse := pool.push(vm)
-		debug(context.Background(),
-			"js.VMPool.returnVM: %d/%d VMs now in use", inUse, pool.maxInUse)
+		debug(pool.ctx, "js.VMPool.returnVM: %d/%d VMs now in use", inUse, pool.maxInUse)
 
 		// Return a ticket to the channel:
 		pool.tickets <- true
@@ -195,8 +193,7 @@ func (pool *VMPool) pop(service *Service) (vm VM, inUse int) {
 				vms = vms[1:]
 				oldest.setReturnToPool(nil)
 				oldest.Close()
-				debug(context.Background(),
-					"js.VMPool.pop: Disposed a stale VM not used in %v", stale)
+				debug(pool.ctx, "js.VMPool.pop: Disposed a stale VM not used in %v", stale)
 			}
 		}
 		pool.vms_ = vms

@@ -26,25 +26,20 @@ import (
 )
 
 func TestSquare(t *testing.T) {
-	ctx := context.Background()
 	TestWithVMs(t, func(t *testing.T, vm VM) {
+		assert.NotNil(t, vm.Context())
 		service := NewService(vm, "square", `function(n) {return n * n;}`)
 		assert.Equal(t, "square", service.Name())
 		assert.Equal(t, vm, service.Host())
 
 		// Test Run:
-		result, err := service.Run(ctx, 13)
+		result, err := service.Run(vm.Context(), 13)
 		assert.NoError(t, err)
 		assert.EqualValues(t, 169, result)
 
 		// Test WithRunner:
 		result, err = service.WithRunner(func(runner Runner) (any, error) {
-			assert.Nil(t, runner.Context())
-			assert.NotNil(t, runner.ContextOrDefault())
-			runner.SetContext(ctx)
-			assert.Equal(t, ctx, runner.Context())
-			assert.Equal(t, ctx, runner.ContextOrDefault())
-
+			assert.Equal(t, vm.Context(), runner.Context())
 			return runner.Run(9)
 		})
 		assert.NoError(t, err)
@@ -53,7 +48,7 @@ func TestSquare(t *testing.T) {
 }
 
 func TestSquareV8Args(t *testing.T) {
-	vm := V8.NewVM()
+	vm := V8.NewVM(testCtx(t))
 	defer vm.Close()
 
 	service := NewService(vm, "square", `function(n) {return n * n;}`)
@@ -70,10 +65,10 @@ func TestSquareV8Args(t *testing.T) {
 }
 
 func TestJSON(t *testing.T) {
-	ctx := context.Background()
+	ctx := testCtx(t)
 
 	var pool VMPool
-	pool.Init(V8, 4)
+	pool.Init(ctx, V8, 4)
 	defer pool.Close()
 
 	service := NewService(&pool, "length", `function(v) {return v.length;}`)
@@ -90,9 +85,9 @@ func TestJSON(t *testing.T) {
 }
 
 func TestCallback(t *testing.T) {
-	ctx := context.Background()
+	ctx := testCtx(t)
 
-	vm := V8.NewVM()
+	vm := V8.NewVM(ctx)
 	defer vm.Close()
 
 	src := `(function() {
@@ -123,8 +118,6 @@ func TestCallback(t *testing.T) {
 
 // Test conversion of numbers into/out of JavaScript.
 func TestNumbers(t *testing.T) {
-	ctx := context.Background()
-
 	TestWithVMs(t, func(t *testing.T, vm VM) {
 		service := NewService(vm, "numbers", `function(n, expectedStr) {
 			if (typeof(n) != 'number' && typeof(n) != 'bigint') throw "Unexpectedly n is a " + typeof(n);
@@ -136,7 +129,7 @@ func TestNumbers(t *testing.T) {
 
 		t.Run("integers", func(t *testing.T) {
 			testInt := func(n int64) {
-				result, err := service.Run(ctx, n, strconv.FormatInt(n, 10))
+				result, err := service.Run(nil, n, strconv.FormatInt(n, 10))
 				if assert.NoError(t, err) {
 					assert.EqualValues(t, n, result)
 				}
@@ -159,7 +152,7 @@ func TestNumbers(t *testing.T) {
 
 		t.Run("floats", func(t *testing.T) {
 			testFloat := func(n float64) {
-				result, err := service.Run(ctx, n, strconv.FormatFloat(n, 'f', -1, 64))
+				result, err := service.Run(nil, n, strconv.FormatFloat(n, 'f', -1, 64))
 				if assert.NoError(t, err) {
 					assert.EqualValues(t, n, result)
 				}
@@ -184,7 +177,7 @@ func TestNumbers(t *testing.T) {
 
 		t.Run("json_Number_integer", func(t *testing.T) {
 			hugeInt := json.Number("123456789012345")
-			result, err := service.Run(ctx, hugeInt, string(hugeInt))
+			result, err := service.Run(nil, hugeInt, string(hugeInt))
 			if assert.NoError(t, err) {
 				assert.EqualValues(t, 123456789012345, result)
 			}
@@ -193,7 +186,7 @@ func TestNumbers(t *testing.T) {
 		if vm.Engine().languageVersion >= 11 { // (Otto does not support BigInts)
 			t.Run("json_Number_huge_integer", func(t *testing.T) {
 				hugeInt := json.Number("1234567890123456789012345678901234567890")
-				result, err := service.Run(ctx, hugeInt, string(hugeInt))
+				result, err := service.Run(nil, hugeInt, string(hugeInt))
 				if assert.NoError(t, err) {
 					ibig := new(big.Int)
 					ibig, _ = ibig.SetString(string(hugeInt), 10)
@@ -204,7 +197,7 @@ func TestNumbers(t *testing.T) {
 
 		t.Run("json_Number_float", func(t *testing.T) {
 			floatStr := json.Number("1234567890.123")
-			result, err := service.Run(ctx, floatStr, string(floatStr))
+			result, err := service.Run(nil, floatStr, string(floatStr))
 			if assert.NoError(t, err) {
 				assert.EqualValues(t, 1234567890.123, result)
 			}
@@ -214,9 +207,9 @@ func TestNumbers(t *testing.T) {
 
 // For security purposes, verify that JS APIs to do network or file I/O are not present:
 func TestNoIO(t *testing.T) {
-	ctx := context.Background()
+	ctx := testCtx(t)
 
-	vm := V8.NewVM() // Otto appears to have no way to refer to the global object...
+	vm := V8.NewVM(ctx) // Otto appears to have no way to refer to the global object...
 	defer vm.Close()
 
 	service := NewService(vm, "check", `function() {
@@ -237,9 +230,8 @@ func TestNoIO(t *testing.T) {
 
 // Verify that ECMAScript modules can't be loaded. (The older `require` is checked in TestNoIO.)
 func TestNoModules(t *testing.T) {
-	ctx := context.Background()
-
-	vm := V8.NewVM() // Otto doesn't support ES modules
+	ctx := testCtx(t)
+	vm := V8.NewVM(ctx) // Otto doesn't support ES modules
 	defer vm.Close()
 
 	src := `import foo from 'foo';
@@ -255,7 +247,7 @@ func TestNoModules(t *testing.T) {
 
 func TestTimeout(t *testing.T) {
 	TestWithVMs(t, func(t *testing.T, vm VM) {
-		ctx := context.Background()
+		ctx := vm.Context()
 
 		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
@@ -269,9 +261,9 @@ func TestTimeout(t *testing.T) {
 }
 
 func TestOutOfMemory(t *testing.T) {
-	vm := V8.NewVM()
+	ctx := testCtx(t)
+	vm := V8.NewVM(ctx)
 	defer vm.Close()
-	ctx := context.Background()
 
 	service := NewService(vm, "OOM", `
 		function() {
@@ -285,9 +277,9 @@ func TestOutOfMemory(t *testing.T) {
 }
 
 func TestStackOverflow(t *testing.T) {
-	vm := V8.NewVM()
+	ctx := testCtx(t)
+	vm := V8.NewVM(ctx)
 	defer vm.Close()
-	ctx := context.Background()
 
 	service := NewService(vm, "Overflow", `
 		function() {

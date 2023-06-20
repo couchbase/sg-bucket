@@ -182,7 +182,7 @@ func (service *V8BasicTemplate) defineSgLog() error {
 				extra += " "
 				extra += args[i].DetailString()
 			}
-			LoggingCallback(r.ContextOrDefault(), level, "%s %s", msg, extra)
+			LoggingCallback(r.Context(), level, "%s %s", msg, extra)
 		}
 		return nil, nil
 	}))

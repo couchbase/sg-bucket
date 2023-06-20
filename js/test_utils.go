@@ -10,15 +10,27 @@ licenses/APL2.txt.
 
 package js
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
+
+// testCtx creates a context for the given test which is also cancelled once the test has completed.
+func testCtx(t testing.TB) context.Context {
+	ctx, cancelCtx := context.WithCancel(context.TODO())
+	t.Cleanup(cancelCtx)
+	return ctx
+}
 
 // Unit-test utility. Calls the function with each supported type of VM (Otto and V8).
 func TestWithVMs(t *testing.T, fn func(t *testing.T, vm VM)) {
 	for _, engine := range testEngines {
 		t.Run(engine.String(), func(t *testing.T) {
-			vm := engine.NewVM()
-			defer vm.Close()
+			ctx, cancelCtx := context.WithCancel(context.TODO())
+			vm := engine.NewVM(ctx)
 			fn(t, vm)
+			vm.Close()
+			cancelCtx()
 		})
 	}
 }
@@ -28,9 +40,11 @@ func TestWithVMs(t *testing.T, fn func(t *testing.T, vm VM)) {
 func TestWithVMPools(t *testing.T, maxVMs int, fn func(t *testing.T, pool *VMPool)) {
 	for _, engine := range testEngines {
 		t.Run(engine.String(), func(t *testing.T) {
-			pool := NewVMPool(engine, maxVMs)
-			defer pool.Close()
+			ctx, cancelCtx := context.WithCancel(context.TODO())
+			pool := NewVMPool(ctx, engine, maxVMs)
 			fn(t, pool)
+			pool.Close()
+			cancelCtx()
 		})
 	}
 }

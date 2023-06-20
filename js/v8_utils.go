@@ -99,13 +99,13 @@ func newString(i *v8.Isolate, str string) *v8.Value {
 }
 
 // Marshals a Go value to JSON, and returns the string as a V8 Value.
-func newJSONString(ctx *v8.Context, val any) (*v8.Value, error) {
+func newJSONString(v8ctx *v8.Context, val any) (*v8.Value, error) {
 	if val == nil {
-		return v8.Null(ctx.Isolate()), nil
+		return v8.Null(v8ctx.Isolate()), nil
 	} else if jsonBytes, err := json.Marshal(val); err != nil {
 		return nil, err
 	} else {
-		return ctx.NewValue(string(jsonBytes))
+		return v8ctx.NewValue(string(jsonBytes))
 	}
 }
 

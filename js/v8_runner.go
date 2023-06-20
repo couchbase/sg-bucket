@@ -27,25 +27,25 @@ type V8Runner struct {
 	baseRunner
 	v8vm     *v8VM
 	template V8Template   // The Service template I'm created from
-	ctx      *v8.Context  // V8 object managing this execution context
+	v8ctx    *v8.Context  // V8 object managing this execution context
 	mainFn   *v8.Function // The entry-point function (returned by the Service's script)
 	Client   any          // You can put whatever you want here, to point back to your state
 }
 
 func newV8Runner(vm *v8VM, template V8Template, id serviceID) (runner *V8Runner, err error) {
 	// Create a V8 Context and run the setup script in it:
-	ctx := v8.NewContext(vm.iso, template.Global())
+	v8ctx := v8.NewContext(vm.iso, template.Global())
 	defer func() {
 		if err != nil {
-			ctx.Close()
+			v8ctx.Close()
 		}
 	}()
-	if _, err := vm.setupScript.Run(ctx); err != nil {
+	if _, err := vm.setupScript.Run(v8ctx); err != nil {
 		return nil, fmt.Errorf("Unexpected error in JavaScript initialization code: %w", err)
 	}
 
 	// Now run the service's script, which returns the service's main function:
-	result, err := template.Script().Run(ctx)
+	result, err := template.Script().Run(v8ctx)
 	if err != nil {
 		return nil, fmt.Errorf("JavaScript error initializing %s: %w", template.Name(), err)
 	}
@@ -61,7 +61,7 @@ func newV8Runner(vm *v8VM, template V8Template, id serviceID) (runner *V8Runner,
 		},
 		v8vm:     vm,
 		template: template,
-		ctx:      ctx,
+		v8ctx:    v8ctx,
 		mainFn:   mainFn,
 	}, nil
 }
@@ -78,9 +78,9 @@ func (r *V8Runner) close() {
 	if r.vm != nil && r.v8vm.curRunner == r {
 		r.v8vm.curRunner = nil
 	}
-	if r.ctx != nil {
-		r.ctx.Close()
-		r.ctx = nil
+	if r.v8ctx != nil {
+		r.v8ctx.Close()
+		r.v8ctx = nil
 	}
 	r.vm = nil
 }
@@ -178,8 +178,8 @@ func (r *V8Runner) ResolvePromise(val *v8.Value, err error) (*v8.Value, error) {
 		case v8.Rejected:
 			return nil, errors.New(p.Result().DetailString())
 		case v8.Pending:
-			r.ctx.PerformMicrotaskCheckpoint() // run VM to make progress on the promise
-			deadline, hasDeadline := r.ContextOrDefault().Deadline()
+			r.v8ctx.PerformMicrotaskCheckpoint() // run VM to make progress on the promise
+			deadline, hasDeadline := r.Context().Deadline()
 			if hasDeadline && time.Now().After(deadline) {
 				return nil, context.DeadlineExceeded
 			}
@@ -191,7 +191,7 @@ func (r *V8Runner) ResolvePromise(val *v8.Value, err error) (*v8.Value, error) {
 }
 
 func (r *V8Runner) WithTemporaryValues(fn func()) {
-	r.ctx.WithTemporaryValues(fn)
+	r.v8ctx.WithTemporaryValues(fn)
 }
 
 //////// CONVERTING GO VALUES TO JAVASCRIPT:
@@ -222,7 +222,7 @@ func (r *V8Runner) NewValue(val any) (v8Val *v8.Value, err error) {
 	if val == nil {
 		return r.NullValue(), nil // v8.NewValue panics if given nil :-p
 	}
-	v8Val, err = r.ctx.NewValue(val)
+	v8Val, err = r.v8ctx.NewValue(val)
 	if err != nil {
 		if jsonStr, ok := val.(JSONString); ok {
 			if jsonStr != "" {
@@ -238,16 +238,16 @@ func (r *V8Runner) NewValue(val any) (v8Val *v8.Value, err error) {
 }
 
 // Creates a JavaScript number value.
-func (r *V8Runner) NewInt(i int) *v8.Value { return mustSucceed(r.ctx.NewValue(i)) }
+func (r *V8Runner) NewInt(i int) *v8.Value { return mustSucceed(r.v8ctx.NewValue(i)) }
 
 // Creates a JavaScript string value.
 func (r *V8Runner) NewString(str string) *v8.Value { return newString(r.v8vm.iso, str) }
 
 // Marshals a Go value to JSON and returns it as a V8 string.
-func (r *V8Runner) NewJSONString(val any) (*v8.Value, error) { return newJSONString(r.ctx, val) }
+func (r *V8Runner) NewJSONString(val any) (*v8.Value, error) { return newJSONString(r.v8ctx, val) }
 
 // Parses a JSON string to a V8 value, by calling JSON.parse() on it.
-func (r *V8Runner) JSONParse(json string) (*v8.Value, error) { return v8.JSONParse(r.ctx, json) }
+func (r *V8Runner) JSONParse(json string) (*v8.Value, error) { return v8.JSONParse(r.v8ctx, json) }
 
 // Returns a value representing JavaScript 'undefined'.
 func (r *V8Runner) UndefinedValue() *v8.Value { return v8.Undefined(r.v8vm.iso) }
@@ -258,18 +258,20 @@ func (r *V8Runner) NullValue() *v8.Value { return v8.Null(r.v8vm.iso) }
 //////// CONVERTING JAVASCRIPT VALUES BACK TO GO:
 
 // Encodes a V8 value as a JSON string.
-func (r *V8Runner) JSONStringify(val *v8.Value) (string, error) { return v8.JSONStringify(r.ctx, val) }
+func (r *V8Runner) JSONStringify(val *v8.Value) (string, error) {
+	return v8.JSONStringify(r.v8ctx, val)
+}
 
 //////// INSTANTIATING TEMPLATES:
 
 // Creates a V8 Object from a template previously created by BasicTemplate.NewObjectTemplate.
 // (Not needed if you added the template as a property of the global object.)
 func (r *V8Runner) NewInstance(o *v8.ObjectTemplate) (*v8.Object, error) {
-	return o.NewInstance(r.ctx)
+	return o.NewInstance(r.v8ctx)
 }
 
 // Creates a V8 Function from a template previously created by BasicTemplate.NewCallback.
 // (Not needed if you added the template as a property of the global object.)
 func (r *V8Runner) NewFunctionInstance(f *v8.FunctionTemplate) *v8.Function {
-	return f.GetFunction(r.ctx)
+	return f.GetFunction(r.v8ctx)
 }

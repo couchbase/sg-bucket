@@ -21,7 +21,7 @@ import (
 type Engine struct {
 	name            string
 	languageVersion int
-	factory         func(*Engine, *servicesConfiguration) VM
+	factory         func(context.Context, *Engine, *servicesConfiguration) VM
 }
 
 // The name identifying this engine ("V8" or "Otto")
@@ -37,12 +37,12 @@ const ES2015 = 6
 
 // Creates a JavaScript virtual machine of the given type.
 // This object should be used only on a single goroutine at a time.
-func (engine *Engine) NewVM() VM {
-	return engine.newVM(&servicesConfiguration{})
+func (engine *Engine) NewVM(ctx context.Context) VM {
+	return engine.newVM(ctx, &servicesConfiguration{})
 }
 
-func (engine *Engine) newVM(services *servicesConfiguration) VM {
-	return engine.factory(engine, services)
+func (engine *Engine) newVM(ctx context.Context, services *servicesConfiguration) VM {
+	return engine.factory(ctx, engine, services)
 }
 
 //////// VM
@@ -56,6 +56,7 @@ func (engine *Engine) newVM(services *servicesConfiguration) VM {
 // The VMPool takes care of this, by vending VM instances that are known not to be in use.
 type VM interface {
 	Engine() *Engine
+	Context() context.Context
 	Close()
 	FindService(name string) *Service
 
@@ -86,7 +87,7 @@ func ValidateJavascriptFunction(vm VM, jsFunc string, minArgs int, maxArgs int) 
 			}
 		`)
 	}
-	_, err := service.Run(context.Background(), jsFunc, minArgs, maxArgs)
+	_, err := service.Run(vm.Context(), jsFunc, minArgs, maxArgs)
 	return err
 }
 
@@ -94,6 +95,7 @@ func ValidateJavascriptFunction(vm VM, jsFunc string, minArgs int, maxArgs int) 
 
 // A base "class" containing shared properties and methods for use by VM implementations.
 type baseVM struct {
+	ctx          context.Context
 	engine       *Engine
 	services     *servicesConfiguration // Factories for services
 	returnToPool *VMPool                // Pool to return me to, or nil
@@ -102,6 +104,10 @@ type baseVM struct {
 }
 
 func (vm *baseVM) Engine() *Engine { return vm.engine }
+
+func (vm *baseVM) Context() context.Context {
+	return vm.ctx
+}
 
 func (vm *baseVM) close() {
 	if vm.returnToPool != nil {

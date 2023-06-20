@@ -60,7 +60,7 @@ func newOttoRunner(vm *ottoVM, service *Service) (*OttoRunner, error) {
 			extra += str + " "
 		}
 
-		LoggingCallback(r.ContextOrDefault(), LogLevel(ilevel), "%s %s", message, extra)
+		LoggingCallback(r.Context(), LogLevel(ilevel), "%s %s", message, extra)
 		return otto.UndefinedValue()
 	})
 	if err != nil {

@@ -26,10 +26,8 @@ type Runner interface {
 	// Associates a Go `Context` with this Runner.
 	// If this Context has a deadline, JS calls will abort if it expires.
 	SetContext(ctx context.Context)
-	// The associated `Context`, if you've set one; else nil.
+	// The associated `Context`. Defaults to the VM's Context.
 	Context() context.Context
-	// The associated `Context`, else the default `context.Background()` instance.
-	ContextOrDefault() context.Context
 	// Returns the remaining duration until the Context's deadline, or nil if none.
 	Timeout() *time.Duration
 	// Runs the Service's JavaScript function.
@@ -44,30 +42,27 @@ type Runner interface {
 type baseRunner struct {
 	id         serviceID       // The service ID in its VM
 	vm         VM              // The owning VM object
-	goContext  context.Context // context.Context value for use by Go callbacks
+	ctx        context.Context // Overrides vm.Context() if non-nil
 	associated any
 }
 
 func (r *baseRunner) VM() VM                         { return r.vm }
 func (r *baseRunner) AssociatedValue() any           { return r.associated }
 func (r *baseRunner) SetAssociatedValue(obj any)     { r.associated = obj }
-func (r *baseRunner) SetContext(ctx context.Context) { r.goContext = ctx }
-func (r *baseRunner) Context() context.Context       { return r.goContext }
+func (r *baseRunner) SetContext(ctx context.Context) { r.ctx = ctx }
 
-func (r *baseRunner) ContextOrDefault() context.Context {
-	if r.goContext != nil {
-		return r.goContext
+func (r *baseRunner) Context() context.Context {
+	if r.ctx != nil {
+		return r.ctx
 	} else {
-		return context.TODO()
+		return r.vm.Context()
 	}
 }
 
 func (r *baseRunner) Timeout() *time.Duration {
-	if r.goContext != nil {
-		if deadline, hasDeadline := r.goContext.Deadline(); hasDeadline {
-			timeout := time.Until(deadline)
-			return &timeout
-		}
+	if deadline, hasDeadline := r.Context().Deadline(); hasDeadline {
+		timeout := time.Until(deadline)
+		return &timeout
 	}
 	return nil
 }

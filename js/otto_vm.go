@@ -11,6 +11,7 @@ licenses/APL2.txt.
 package js
 
 import (
+	"context"
 	"fmt"
 	"time"
 )
@@ -27,10 +28,10 @@ const ottoVMName = "Otto"
 var Otto = &Engine{
 	name:            ottoVMName,
 	languageVersion: 5, // https://github.com/robertkrimen/otto#caveat-emptor
-	factory: func(engine *Engine, services *servicesConfiguration) VM {
+	factory: func(ctx context.Context, engine *Engine, services *servicesConfiguration) VM {
 		return &ottoVM{
-			baseVM:  &baseVM{engine: engine, services: services}, // "superclass"
-			runners: []*OttoRunner{},                             // Cached reusable Runners
+			baseVM:  &baseVM{ctx: ctx, engine: engine, services: services}, // "superclass"
+			runners: []*OttoRunner{},                                       // Cached reusable Runners
 		}
 	},
 }
@@ -107,7 +108,7 @@ func (vm *ottoVM) withRunner(service *Service, fn func(Runner) (any, error)) (an
 }
 
 func (vm *ottoVM) returnRunner(r *OttoRunner) {
-	r.goContext = nil
+	r.ctx = nil // clear any override
 	if vm.curRunner == r {
 		vm.curRunner = nil
 	} else if r.vm != vm {

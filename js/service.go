@@ -28,6 +28,7 @@ type serviceID uint32 // internal ID, used as an array index in VM and VMPool.
 // A provider of a JavaScript runtime for Services. VM and VMPool implement this.
 type ServiceHost interface {
 	Engine() *Engine
+	Context() context.Context
 	Close()
 	FindService(name string) *Service
 	registerService(*Service)
@@ -49,7 +50,7 @@ type TemplateFactory func(base *V8BasicTemplate) (V8Template, error)
 // The source code should be of the form `function(arg1,arg2…) {…body…; return result;}`.
 // If you have a more complex script, like one that defines several functions, use NewCustomService.
 func NewService(host ServiceHost, name string, jsFunctionSource string) *Service {
-	debug(context.Background(), "Creating JavaScript service %q", name)
+	debug(host.Context(), "Creating JavaScript service %q", name)
 	service := &Service{
 		host:             host,
 		name:             name,
@@ -82,7 +83,7 @@ func (service *Service) Host() ServiceHost { return service.host }
 //   - If the host is a VM, this call will fail if there is another Runner in use belonging to any
 //     Service hosted by that VM.
 func (service *Service) GetRunner() (Runner, error) {
-	debug(context.Background(), "Running JavaScript service %q", service.name)
+	debug(service.host.Context(), "Running JavaScript service %q", service.name)
 	return service.host.getRunner(service)
 }
 
@@ -93,12 +94,15 @@ func (service *Service) WithRunner(fn func(Runner) (any, error)) (any, error) {
 }
 
 // A high-level method that runs a service in a VM without your needing to interact with a Runner.
-// The arguments can be Go types or V8 Values; any types supported by VM.NewValue.
+// The `ctx` parameter may be nil, to use the VM's Context.
+// The arguments can be Go types or V8 Values: any types supported by VM.NewValue.
 // The result is converted back to a Go type.
 // If the function throws a JavaScript exception it's converted to a Go `error`.
 func (service *Service) Run(ctx context.Context, args ...any) (any, error) {
 	return service.WithRunner(func(runner Runner) (any, error) {
-		runner.SetContext(ctx)
+		if ctx != nil {
+			runner.SetContext(ctx)
+		}
 		return runner.Run(args...)
 	})
 }
