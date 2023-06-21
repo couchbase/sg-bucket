@@ -238,10 +238,10 @@ func (r *V8Runner) NewValue(val any) (v8Val *v8.Value, err error) {
 }
 
 // Creates a JavaScript number value.
-func (r *V8Runner) NewInt(i int) *v8.Value { return mustSucceed(r.v8ctx.NewValue(i)) }
+func (r *V8Runner) NewInt(i int) (*v8.Value, error) { return r.v8ctx.NewValue(i) }
 
 // Creates a JavaScript string value.
-func (r *V8Runner) NewString(str string) *v8.Value { return newString(r.v8vm.iso, str) }
+func (r *V8Runner) NewString(str string) (*v8.Value, error) { return newString(r.v8vm.iso, str) }
 
 // Marshals a Go value to JSON and returns it as a V8 string.
 func (r *V8Runner) NewJSONString(val any) (*v8.Value, error) { return newJSONString(r.v8ctx, val) }

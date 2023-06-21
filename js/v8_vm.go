@@ -160,13 +160,13 @@ func (vm *v8VM) hasInitializedService(service *Service) bool {
 // Produces a v8Runner object that can run the given service.
 // Be sure to call Runner.Return when done.
 // Since v8VM is single-threaded, calling getRunner when a v8Runner already exists and hasn't been
-// returned yet is assumed to be illegal concurrent access; it will trigger a panic.
+// returned yet is assumed to be illegal concurrent access; it will return an error.
 func (vm *v8VM) getRunner(service *Service) (Runner, error) {
 	if vm.iso == nil {
 		return nil, fmt.Errorf("the js.VM has been closed")
 	}
 	if vm.curRunner != nil {
-		panic("illegal access to v8VM: already has a v8Runner")
+		return nil, fmt.Errorf("illegal access to v8VM: already has a v8Runner")
 	}
 	var runner *V8Runner
 	index := int(service.id)
@@ -213,7 +213,7 @@ func (vm *v8VM) returnRunner(r *V8Runner) {
 		vm.iso.Unlock()
 		vm.curRunner = nil
 	} else if r.vm != vm {
-		panic("v8Runner returned to wrong v8VM!")
+		logError(vm.Context(), "v8Runner returned to wrong v8VM!")
 	}
 	if r.template.Reusable() {
 		for int(r.id) >= len(vm.runners) {
@@ -232,7 +232,7 @@ func (vm *v8VM) currentRunner(v8ctx *v8.Context) *V8Runner {
 	// active v8Runner at a time. If it were to be multiple Runners, we'd need to maintain a map
 	// from Contexts to Runners.
 	if vm.curRunner == nil {
-		panic(fmt.Sprintf("Unknown v8.Context passed to v8VM.currentRunner: %v, expected none", v8ctx))
+		logError(vm.Context(), "Unknown v8.Context passed to v8VM.currentRunner: %v, expected none", v8ctx)
 	}
 	if v8ctx != vm.curRunner.v8ctx {
 		panic(fmt.Sprintf("Unknown v8.Context passed to v8VM.currentRunner: %v, expected %v", v8ctx, vm.curRunner.v8ctx))

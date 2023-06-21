@@ -118,7 +118,7 @@ func (r *OttoRunner) Run(args ...any) (result any, err error) {
 			select {
 			case <-timeoutChan:
 				r.otto.Interrupt <- func() {
-					panic(context.DeadlineExceeded)
+					panic(context.DeadlineExceeded) // This will be caught in the defer block above
 				}
 			case <-runnerDoneChan:
 				return

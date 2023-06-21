@@ -135,7 +135,7 @@ func (t *V8BasicTemplate) NewValue(val any) (*v8.Value, error) {
 }
 
 // Creates a JS string value.
-func (t *V8BasicTemplate) NewString(str string) *v8.Value {
+func (t *V8BasicTemplate) NewString(str string) (*v8.Value, error) {
 	return newString(t.vm.iso, str)
 }
 

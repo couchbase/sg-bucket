@@ -92,7 +92,8 @@ func (pool *VMPool) FindService(name string) *Service {
 
 func (pool *VMPool) registerService(service *Service) {
 	if pool.services == nil {
-		panic("You forgot to initialize a VMPool")
+		logError(pool.Context(), "Can't register a Service: the js.VMPool is uninitialized")
+		return
 	}
 	pool.services.addService(service)
 }

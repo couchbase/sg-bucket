@@ -69,7 +69,7 @@ func (vm *ottoVM) getRunner(service *Service) (Runner, error) {
 		return nil, fmt.Errorf("the js.VM has been closed")
 	}
 	if vm.curRunner != nil {
-		panic("illegal access to ottoVM: already has a ottoRunner")
+		return nil, fmt.Errorf("illegal access to ottoVM: already has a ottoRunner")
 	}
 	if !vm.services.hasService(service) {
 		return nil, fmt.Errorf("unknown js.Service instance passed to VM: %v", service)
@@ -112,7 +112,8 @@ func (vm *ottoVM) returnRunner(r *OttoRunner) {
 	if vm.curRunner == r {
 		vm.curRunner = nil
 	} else if r.vm != vm {
-		panic("OttoRunner returned to wrong v8VM!")
+		logError(vm.Context(), "OttoRunner returned to wrong v8VM!")
+		return
 	}
 	vm.runners[r.id] = r
 	vm.release()

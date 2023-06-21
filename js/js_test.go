@@ -23,6 +23,7 @@ import (
 
 	"github.com/snej/v8go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSquare(t *testing.T) {
@@ -54,7 +55,9 @@ func TestSquareV8Args(t *testing.T) {
 	service := NewService(vm, "square", `function(n) {return n * n;}`)
 	result, err := service.WithRunner(func(runner Runner) (any, error) {
 		v8Runner := runner.(*V8Runner)
-		result, err := v8Runner.RunWithV8Args(v8Runner.NewInt(9))
+		nine, err := v8Runner.NewInt(9)
+		require.NoError(t, err)
+		result, err := v8Runner.RunWithV8Args(nine)
 		if err != nil {
 			return nil, err
 		}

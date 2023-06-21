@@ -52,7 +52,7 @@ func (engine *Engine) newVM(ctx context.Context, services *servicesConfiguration
 //
 // **Not thread-safe!** A VM instance must be used only on one goroutine at a time.
 // A Service whose ServiceHost is a VM can only be used on a single goroutine; any concurrent
-// use will trigger a panic in VM.getRunner.
+// use will fail with an error.
 // The VMPool takes care of this, by vending VM instances that are known not to be in use.
 type VM interface {
 	Engine() *Engine
@@ -111,7 +111,8 @@ func (vm *baseVM) Context() context.Context {
 
 func (vm *baseVM) close() {
 	if vm.returnToPool != nil {
-		panic("Don't Close a VM that belongs to a VMPool")
+		logError(vm.Context(), "Illegal attempt to close a %T that belongs to a VMPool", vm)
+		return
 	}
 	vm.services = nil
 	vm.closed = true
@@ -120,9 +121,9 @@ func (vm *baseVM) close() {
 func (vm *baseVM) registerService(service *Service) {
 	if vm.services == nil {
 		if vm.closed {
-			panic("Using an already-closed js.VM")
+			logError(vm.Context(), "Can't register a js.Service: the VM is already closed")
 		} else {
-			panic("You forgot to initialize a js.VM") // Must call NewVM()
+			logError(vm.Context(), "Can't register a Service: the js.VM is uninitialized") // Must call NewVM()
 		}
 	}
 	vm.services.addService(service)

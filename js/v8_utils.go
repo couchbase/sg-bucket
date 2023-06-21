@@ -13,6 +13,7 @@ licenses/APL2.txt.
 package js
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -92,10 +93,14 @@ func StringArrayToGo(val *v8.Value) (result []string, err error) {
 
 //////// CONVERTING GO TO V8 VALUES:
 
-// Converts a Go string into a JS string value. Assumes this cannot fail.
+// Converts a Go string into a JS string value.
 // (AFAIK, v8.NewValue only fails if the input type is invalid, or V8 runs out of memory.)
-func newString(i *v8.Isolate, str string) *v8.Value {
-	return mustSucceed(v8.NewValue(i, str))
+func newString(i *v8.Isolate, str string) (*v8.Value, error) {
+	value, err := v8.NewValue(i, str)
+	if err != nil {
+		logError(context.TODO(), "v8.NewValue(%q) failed: %v", str, err)
+	}
+	return value, err
 }
 
 // Marshals a Go value to JSON, and returns the string as a V8 Value.
@@ -114,15 +119,9 @@ func newJSONString(v8ctx *v8.Context, val any) (*v8.Value, error) {
 // Returns an error back to a V8 caller.
 // Calls v8.Isolate.ThrowException, with the Go error's string as the message.
 func v8Throw(i *v8.Isolate, err error) *v8.Value {
-	return i.ThrowException(newString(i, err.Error()))
-}
-
-// Simple utility to wrap a function that returns a value and an error; returns just the value, panicking if there was an error.
-// This is kind of equivalent to those 3-prong to 2-prong electric plug adapters...
-// Needless to say, it should only be used if you know the error cannot occur, or that if it occurs something is very, very wrong.
-func mustSucceed[T any](result T, err error) T {
-	if err != nil {
-		panic(fmt.Sprintf(`ASSERTION FAILURE: expected a %T, got error "%v"`, result, err))
+	message, _ := newString(i, err.Error())
+	if message == nil {
+		message = v8.Null(i)
 	}
-	return result
+	return i.ThrowException(message)
 }
