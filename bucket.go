@@ -87,13 +87,13 @@ type MutationFeedStore interface {
 	// To close the feed, pass a channel in args.Terminator and close that channel.
 	// - args: Configures what events will be sent.
 	// - callback: The function to be called for each event.
-	// - dbStats: TODO: What does this do? Walrus ignores it.
+	// - dbStats: Allows passing through rollback counts as a stat; ignored by Walrus.
 	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
 
 	// Starts a new TAP event feed. Events can be read from the returned MutationFeed's
 	// Events channel. The feed is closed by calling the MutationFeed's Close function.
 	// - args: Configures what events will be sent.
-	// - dbStats: TODO: What does this do? Walrus ignores it.
+	// - dbStats: Allows passing through rollback counts as a stat; ignored by Walrus.
 	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
 }
 
@@ -162,6 +162,7 @@ type KVStore interface {
 	Touch(k string, exp uint32) (cas uint64, err error)
 
 	// Adds a document; similar to Set but gives up if the key exists with a non-nil value.
+	// Any leftover xattrs on a tombstoned value will be removed.
 	// Parameters:
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp (0 for never)
@@ -205,6 +206,7 @@ type KVStore interface {
 	// exist, but checks for CAS conflicts:
 	// If the document has a value, and its CAS differs from the input `cas` parameter, the method
 	// fails and returns a CasMismatchErr.
+	// Xattrs are unaffected by this call.
 	// Parameters:
 	// - k: The key (document ID)
 	// - flags: TODO: What are they? Walrus ignores them
