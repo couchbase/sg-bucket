@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	v8 "github.com/snej/v8go" // Docs: https://pkg.go.dev/github.com/snej/v8go
+	v8 "github.com/couchbasedeps/v8go" // Docs: https://pkg.go.dev/github.com/couchbasedeps/v8go
 )
 
 type V8Runner struct {

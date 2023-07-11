@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/snej/v8go"
+	"github.com/couchbasedeps/v8go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

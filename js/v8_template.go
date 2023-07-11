@@ -15,7 +15,7 @@ package js
 import (
 	"fmt"
 
-	v8 "github.com/snej/v8go"
+	v8 "github.com/couchbasedeps/v8go"
 )
 
 // A V8Template manages a Service's initial JS runtime environment -- its script code, main function

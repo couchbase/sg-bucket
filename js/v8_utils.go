@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"math"
 
-	v8 "github.com/snej/v8go"
+	v8 "github.com/couchbasedeps/v8go"
 )
 
 // CONVERTING V8 VALUES BACK TO GO:
