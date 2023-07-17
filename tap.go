@@ -11,7 +11,6 @@ licenses/APL2.txt.
 package sgbucket
 
 import (
-	"context"
 	"math"
 	"time"
 )
@@ -69,4 +68,4 @@ const FeedResume = 1
 
 // FeedEventCallbackFunc performs mutation processing.  Return value indicates whether the mutation should trigger
 // checkpoint persistence (used to avoid recursive checkpoint document processing)
-type FeedEventCallbackFunc func(ctx context.Context, event FeedEvent) bool
+type FeedEventCallbackFunc func(event FeedEvent) bool
