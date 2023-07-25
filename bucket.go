@@ -245,12 +245,17 @@ type KVStore interface {
 
 	// Interactively updates a document. The document's current value (nil if none) is passed to
 	// the callback, then the result of the callback is used to update the value.
-	// If the document's CAS changes between the read and the write, the method retries; therefore
-	// you must be prepared for the callback to be called multiple times.
+	//
+	// Warning: If the document's CAS changes between the read and the write, the method retries;
+	//		    therefore you must be prepared for your callback to be called multiple times.
+	//
+	// Note: The new value is assumed to be JSON, i.e. when the document is updated its "is JSON"
+	//		 flag is set. The UpdateFunc callback unfortunately has no way to override this.
+	//
 	// Parameters:
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp to set (0 for never)
-	// - callback: Will be called to get the new value
+	// - callback: Will be called to compute the new value
 	// Return values:
 	// - casOut: The document's new CAS
 	// - err: Error, if any (including an error returned by the callback)
