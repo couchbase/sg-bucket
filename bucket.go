@@ -9,6 +9,7 @@
 package sgbucket
 
 import (
+	"context"
 	"errors"
 	"expvar"
 	"fmt"
@@ -87,7 +88,7 @@ type MutationFeedStore interface {
 	// - args: Configures what events will be sent.
 	// - callback: The function to be called for each event.
 	// - dbStats: TODO: What does this do? Walrus ignores it.
-	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
+	StartDCPFeed(ctx context.Context, args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
 
 	// Starts a new TAP event feed. Events can be read from the returned MutationFeed's
 	// Events channel. The feed is closed by calling the MutationFeed's Close function.
