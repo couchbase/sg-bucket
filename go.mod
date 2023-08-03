@@ -3,6 +3,7 @@ module github.com/couchbase/sg-bucket
 go 1.19
 
 require (
+	github.com/couchbasedeps/v8go v1.7.5-0.20230711212500-516f3127f59a
 	github.com/robertkrimen/otto v0.0.0-20211024170158-b87d35c0b86f
 	github.com/stretchr/testify v1.7.1
 	golang.org/x/text v0.3.7
