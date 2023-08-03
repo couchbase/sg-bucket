@@ -63,17 +63,21 @@ type MutationFeed interface {
 type FeedArguments struct {
 	ID               string              // Feed ID, used to build unique identifier for DCP feed
 	Backfill         uint64              // Timestamp of oldest item to send. Use FeedNoBackfill to suppress all past items.
-	Dump             bool                // If set, server will disconnect after sending existing items.
-	KeysOnly         bool                // If true, client doesn't want values so server shouldn't send them.
+	Dump             bool                // If set, feed will stop after sending existing items.
+	KeysOnly         bool                // If true, events will not contain values or xattrs.
 	Terminator       chan bool           // Feed will stop when this channel is closed (DCP Only)
 	DoneChan         chan struct{}       // DoneChan is closed when the mutation feed terminates.
-	CheckpointPrefix string              // DCP checkpoint key prefix
+	CheckpointPrefix string              // Key of checkpoint doc to save state in, if non-empty
 	Scopes           map[string][]string // Collection names to stream - map keys are scopes
 }
 
 // Value for FeedArguments.Backfill denoting that no past events at all should be sent.  FeedNoBackfill value
 // used as actual value for walrus, go-couchbase bucket, these event types aren't defined using usual approach
 const FeedNoBackfill = math.MaxUint64
+
+// Value for FeedArguments.Backfill denoting that the feed should resume from where it left off
+// previously, or start from the beginning if there's no previous checkpoint.
+// Requires that CheckpointPrefix is set.
 const FeedResume = 1
 
 // FeedEventCallbackFunc performs mutation processing.  Return value indicates whether the mutation should trigger
