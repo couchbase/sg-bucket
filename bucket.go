@@ -300,37 +300,44 @@ type KVStore interface {
 
 // Extension of KVStore that allows individual properties in a document to be accessed.
 // Documents accessed through this API must have values that are JSON objects.
-// Properties are specified by paths that look like "foo.bar.baz" or "foo.bar[3].baz"
+// Properties are specified by SQL++ paths that look like "foo.bar.baz" or "foo.bar[3].baz".
 type SubdocStore interface {
-	// Sets an individual JSON property in a document.
+	// Adds an individual JSON property to a document. The document must exist.
+	// If the property already exists, returns `ErrPathExists`.
+	// If the parent property doesn't exist, returns `ErrPathNotFound`.
+	// If a parent property has the wrong type, returns ErrPathMismatch.
 	// Parameters:
 	// - k: The key (document ID)
-	// - fieldPath: The JSON path of the property to set
-	// - cas: Expected CAS value
-	// - value: The value to set. Will be marshaled to JSON unless it is a `[]byte` or `*[]byte`.
-	SubdocInsert(k string, fieldPath string, cas uint64, value interface{}) error
+	// - subdocPath: The JSON path of the property to set
+	// - cas: Expected CAS value, or 0 to ignore CAS conflicts
+	// - value: The value to set. Will be marshaled to JSON.
+	SubdocInsert(k string, subdocPath string, cas uint64, value interface{}) error
 
 	// Gets the raw JSON value of a document property.
-	// If the property doesn't exist, returns MissingError.
+	// If the property doesn't exist, returns ErrPathNotFound.
+	// If a parent property has the wrong type, returns ErrPathMismatch.
 	// Parameters:
 	// - k: The key (document ID)
-	// - fieldPath: The JSON path of the property to get
+	// - subdocPath: The JSON path of the property to get
 	// Return values:
 	// - value: The property value as JSON
 	// - casOut: The document's current CAS (sequence) number.
-	// - err: Error, if any. MissingError if the key or fieldPath does not exist.
-	GetSubDocRaw(k string, fieldPath string) (value []byte, casOut uint64, err error)
+	// - err: Error, if any.
+	GetSubDocRaw(k string, subdocPath string) (value []byte, casOut uint64, err error)
 
 	// Sets an individual JSON property in a document.
+	// Creates the document if it didn't exist.
+	// If the parent property doesn't exist, returns `ErrPathNotFound`.
+	// If a parent property has the wrong type, returns ErrPathMismatch.
 	// Parameters:
 	// - docID: The document ID or key
-	// - fieldPath: The JSON path of the property to set
+	// - subdocPath: The JSON path of the property to set
 	// - cas: Expected CAS value, or 0 to ignore CAS conflicts
 	// - value: The raw value to set. Must be valid JSON.
 	// Return values:
 	// - casOut: The document's new CAS
 	// - err: Error, if any
-	WriteSubDoc(k string, fieldPath string, cas uint64, value []byte) (casOut uint64, err error)
+	WriteSubDoc(k string, subdocPath string, cas uint64, value []byte) (casOut uint64, err error)
 }
 
 // A ViewStore is a data store with a map-reduce query interface compatible with CouchDB.
