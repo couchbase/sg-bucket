@@ -56,7 +56,7 @@ func (c *JSONCollator) CollateRaw(key1, key2 []byte) int {
 				advance(&key1, 5)
 				advance(&key2, 5)
 			case kNumber:
-				if diff := compareFloats(readNumber(&key1), readNumber(&key2)); diff != 0 {
+				if diff := compareNumbers(readNumber(&key1), readNumber(&key2)); diff != 0 {
 					return diff
 				}
 			case kString:
