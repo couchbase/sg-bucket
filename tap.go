@@ -117,9 +117,9 @@ func EncodeValueWithXattrs(body []byte, xattrs ...Xattr) []byte {
 	}
 
 	var out bytes.Buffer
-	binary.Write(&out, binary.BigEndian, totalSize)
+	_ = binary.Write(&out, binary.BigEndian, totalSize)
 	for _, xattr := range xattrs {
-		binary.Write(&out, binary.BigEndian, xattrLen(xattr))
+		_ = binary.Write(&out, binary.BigEndian, xattrLen(xattr))
 		out.WriteString(xattr.Name)
 		out.WriteByte(0)
 		out.Write(xattr.Value)
