@@ -511,6 +511,10 @@ func (err CasMismatchErr) Error() string {
 	return fmt.Sprintf("cas mismatch: expected %x, really %x", err.Expected, err.Actual)
 }
 
+var ErrPathNotFound = errors.New("subdocument path not found in document")
+var ErrPathExists = errors.New("subdocument path already exists in document")
+var ErrPathMismatch = errors.New("type mismatch in subdocument path")
+
 // Error describing a failure in a view's map function.
 type ViewError struct {
 	From   string
