@@ -418,7 +418,36 @@ type XattrStore interface {
 	WriteUpdateWithXattr(k string, xattrKey string, userXattrKey string, exp uint32, opts *MutateInOptions, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
 }
 
-// A DeletableStore is a data store that supports deletion of the underlying store.
+// Extended XattrStore providing the functionality of SG's SubdocXattrStore
+type XattrStore2 interface {
+	XattrStore
+
+	// Adds an xattr only if it doesn't already exist. (?)
+	InsertXattr(k string, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
+
+	// Creates a document, with an xattr, only if it doesn't already exist. (?)
+	InsertBodyAndXattr(k string, xattrKey string, exp uint32, v interface{}, xv interface{}) (casOut uint64, err error)
+
+	// Updates a document's xattr. (?)
+	UpdateXattr(k string, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
+
+	// Updates a document's value and an xattr. (?)
+	UpdateBodyAndXattr(k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
+
+	// Updates an xattr and deletes the body (making the doc a tombstone.) (?)
+	UpdateXattrDeleteBody(k, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
+
+	// Deletes the document's body and an xattr (?)
+	DeleteBody(k string, xattrKey string, exp uint32, cas uint64) (casOut uint64, err error)
+}
+
+// Utilities for creating/deleting user xattrs. Used by tests.
+type UserXattrStore interface {
+	WriteUserXattr(docKey string, xattrKey string, xattrVal interface{}) (uint64, error)
+	DeleteUserXattr(docKey string, xattrKey string) (uint64, error)
+}
+
+// A DeletableStore is a data store that supports deletion of the underlying persistent storage.
 type DeleteableStore interface {
 	// Closes the store and removes its persistent storage.
 	CloseAndDelete() error
@@ -502,7 +531,7 @@ var ErrPathMismatch = errors.New("type mismatch in subdocument path")
 // - err: Returning an error aborts the update.
 type UpdateFunc func(current []byte) (updated []byte, expiry *uint32, delete bool, err error)
 
-// Callback used by WriteUpdateWithXattr, used to transform the doc in preparation for update
+// Callback used by XattrStore.WriteUpdateWithXattr, used to transform the doc in preparation for update.
 // Parameters:
 // - doc: Current document raw value
 // - xattr: Current value of requested xattr
