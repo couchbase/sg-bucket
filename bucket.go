@@ -35,6 +35,7 @@ const (
 	BucketStoreFeatureSubdocOperations
 	BucketStoreFeaturePreserveExpiry
 	BucketStoreFeatureCollections
+	BucketStoreFeatureSystemCollections
 )
 
 // An error type, used by TypedErrorStore.IsError
