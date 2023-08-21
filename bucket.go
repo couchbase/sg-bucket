@@ -156,7 +156,7 @@ type MutateInSpec struct {
 	Value interface{}
 }
 
-// UpsertSpec creates a upset spec for purpose for macro expansion mutate in operations
+// UpsertSpec creates a upsert spec for macro expansion mutate in operations
 func UpsertSpec(specPath string, val interface{}) MutateInSpec {
 	return MutateInSpec{
 		Path:  specPath,
