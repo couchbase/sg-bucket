@@ -422,23 +422,27 @@ type XattrStore interface {
 type XattrStore2 interface {
 	XattrStore
 
-	// Adds an xattr only if it doesn't already exist. (?)
+	// Creates a tombstone document, with an xattr, only if it doesn't already exist.
 	InsertXattr(k string, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
 
 	// Creates a document, with an xattr, only if it doesn't already exist. (?)
 	InsertBodyAndXattr(k string, xattrKey string, exp uint32, v interface{}, xv interface{}) (casOut uint64, err error)
 
-	// Updates a document's xattr. (?)
+	// Updates a document's xattr.
 	UpdateXattr(k string, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
 
-	// Updates a document's value and an xattr. (?)
+	// Updates a document's value and an xattr.
 	UpdateBodyAndXattr(k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
 
 	// Updates an xattr and deletes the body (making the doc a tombstone.) (?)
 	UpdateXattrDeleteBody(k, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
 
-	// Deletes the document's body and an xattr (?)
+	// Deletes the document's body. Updates the CAS and CRC32 macros in the specified xattr.
 	DeleteBody(k string, xattrKey string, exp uint32, cas uint64) (casOut uint64, err error)
+
+	// Deletes the document's body and an xattr.
+	// Unlike DeleteWithXattr, this fails if the doc is a tombstone (no body).
+	DeleteBodyAndXattr(k string, xattrKey string) error
 }
 
 // Utilities for creating/deleting user xattrs. Used by tests.
