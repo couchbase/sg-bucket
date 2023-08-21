@@ -150,7 +150,7 @@ type MutateInOptions struct {
 	Spec           []MutateInSpec
 }
 
-// MutateInSpec is a path, value pair where the path is a xattr path and the value to the value tio be injected into that place
+// MutateInSpec is a path, value pair where the path is a xattr path and the value to  be injected into that place
 type MutateInSpec struct {
 	Path  string
 	Value interface{}
