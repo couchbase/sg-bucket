@@ -144,9 +144,24 @@ type UpsertOptions struct {
 	PreserveExpiry bool // GoCB v2 option
 }
 
-// MutateInOptions is a struct of options to pass in to SubdocUpdateBodyAndXattr
+// MutateInOptions is a struct of options for mutate in operations, to be used by both sync gateway rosmar
 type MutateInOptions struct {
 	PreserveExpiry bool // Used for imports - CBG-1563
+	Spec           []MutateInSpec
+}
+
+// MutateInSpec is a path, value pair where the path is a xattr path and the value to the value tio be injected into that place
+type MutateInSpec struct {
+	Path  string
+	Value interface{}
+}
+
+// UpsertSpec creates a upset spec for purpose for macro expansion mutate in operations
+func UpsertSpec(specPath string, val interface{}) MutateInSpec {
+	return MutateInSpec{
+		Path:  specPath,
+		Value: val,
+	}
 }
 
 // A KVStore implements the basic key-value CRUD operations.
