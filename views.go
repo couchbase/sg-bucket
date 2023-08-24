@@ -19,6 +19,63 @@ import (
 	"gopkg.in/couchbase/gocb.v1"
 )
 
+// A ViewStore is a data store with a map-reduce query interface compatible with CouchDB.
+// Query parameters are a subset of CouchDB's: https://docs.couchdb.org/en/stable/api/ddoc/views.html
+// Supported parameters are: descending, endkey, group, group_level, include_docs, inclusive_end,
+// key, keys, limit, reduce, stale, startkey
+type ViewStore interface {
+	GetDDoc(docname string) (DesignDoc, error)      // Gets a DesignDoc given its name.
+	GetDDocs() (map[string]DesignDoc, error)        // Gets all the DesignDocs.
+	PutDDoc(docname string, value *DesignDoc) error // Stores a design doc. (Must not be nil.)
+	DeleteDDoc(docname string) error                // Deletes a design doc.
+
+	// Issues a view query, and returns the results all at once.
+	// Parameters:
+	// - ddoc: The view's design doc's name
+	// - name: The view's name
+	// - params: Parameters defining the query
+	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
+
+	// Issues a view query, and returns an iterator over result rows. Depending on the
+	// implementation this may have lower latency and use less memory.
+	ViewQuery(ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
+}
+
+// Result of a view query.
+type ViewResult struct {
+	TotalRows int         `json:"total_rows"`       // Number of rows
+	Rows      ViewRows    `json:"rows"`             // The rows. NOTE: Treat this as read-only.
+	Errors    []ViewError `json:"errors,omitempty"` // Any errors
+
+	Collator      JSONCollator  // Performs Unicode string comparisons
+	iterIndex     int           // Used to support iterator interface
+	iterErr       error         // Error encountered during iteration
+	collationKeys []preCollated // Parallel array of cached collation hints for ViewRows
+	reversed      bool          // True if the rows have been reversed and are no longer sorted
+}
+
+type ViewRows []*ViewRow
+
+// A single result row from a view query.
+type ViewRow struct {
+	ID    string       `json:"id"`            // The source document's ID
+	Key   interface{}  `json:"key"`           // The emitted key
+	Value interface{}  `json:"value"`         // The emitted value
+	Doc   *interface{} `json:"doc,omitempty"` // Document body, if requested with `include_docs`
+}
+
+// Error describing a failure in a view's map function.
+type ViewError struct {
+	From   string
+	Reason string
+}
+
+func (ve ViewError) Error() string {
+	return fmt.Sprintf("Node: %v, reason: %v", ve.From, ve.Reason)
+}
+
+//////// VIEW IMPLEMENTATION UTILITIES:
+
 // Validates a design document.
 func CheckDDoc(value interface{}) (*DesignDoc, error) {
 	source, err := json.Marshal(value)
