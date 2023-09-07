@@ -24,8 +24,11 @@ type JSONString string
 
 type NativeFunction func(otto.FunctionCall) otto.Value
 
-// This specific error string will be raised with a panic if a call to the JS function times out.
-var ErrJSTimeout = "javascript function timed out"
+// panicMsgTimeout will be raised with a panic via vm interrupt if runtime exceeds the defined timeout. We use this to identify cause and translate into appropriate error.
+const panicMsgTimeout = "javascript function timed out"
+
+// ErrJSTimeout will be returned if the JS function timed out.
+var ErrJSTimeout = errors.New(panicMsgTimeout)
 
 // Go interface to a JavaScript function (like a map/reduce/channelmap/validation function.)
 // Each JSServer object compiles a single function into a JavaScript runtime, and lets you
@@ -196,8 +199,8 @@ func (runner *JSRunner) Call(inputs ...interface{}) (_ interface{}, err error) {
 			completed = make(chan struct{})
 			defer func() {
 				if caught := recover(); caught != nil {
-					if caught == ErrJSTimeout {
-						err = errors.New(ErrJSTimeout)
+					if caught == panicMsgTimeout {
+						err = ErrJSTimeout
 						return
 					}
 					panic(caught)
