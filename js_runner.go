@@ -217,7 +217,7 @@ func (runner *JSRunner) Call(inputs ...interface{}) (_ interface{}, err error) {
 					return
 				case <-timer.C:
 					runner.js.Interrupt <- func() {
-						panic(ErrJSTimeout)
+						panic(panicMsgTimeout)
 					}
 				}
 			}()
