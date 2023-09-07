@@ -24,8 +24,8 @@ type JSONString string
 
 type NativeFunction func(otto.FunctionCall) otto.Value
 
-// This specific instance will be returned if a call times out.
-var ErrJSTimeout = errors.New("javascript function timed out")
+// This specific error string will be raised with a panic if a call to the JS function times out.
+var ErrJSTimeout = "javascript function timed out"
 
 // Go interface to a JavaScript function (like a map/reduce/channelmap/validation function.)
 // Each JSServer object compiles a single function into a JavaScript runtime, and lets you
@@ -197,7 +197,7 @@ func (runner *JSRunner) Call(inputs ...interface{}) (_ interface{}, err error) {
 			defer func() {
 				if caught := recover(); caught != nil {
 					if caught == ErrJSTimeout {
-						err = ErrJSTimeout
+						err = errors.New(ErrJSTimeout)
 						return
 					}
 					panic(caught)
