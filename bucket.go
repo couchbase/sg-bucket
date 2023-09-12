@@ -416,11 +416,6 @@ type XattrStore interface {
 	// - previous: The current document, if known. Will be used in place of the initial Get
 	// - callback: The callback that mutates the document
 	WriteUpdateWithXattr(k string, xattrKey string, userXattrKey string, exp uint32, opts *MutateInOptions, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
-}
-
-// Extended XattrStore providing the functionality of SG's SubdocXattrStore
-type XattrStore2 interface {
-	XattrStore
 
 	// Creates a tombstone document, with an xattr, only if it doesn't already exist.
 	InsertXattr(k string, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
