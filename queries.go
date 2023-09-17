@@ -8,7 +8,10 @@
 
 package sgbucket
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 // Identifies query languages understood by QueryableStore objects.
 type QueryLanguage string
@@ -66,10 +69,10 @@ type QueryableStore interface {
 // implemented by sgbucket.ViewResult, gocb.ViewResults, and gocb.QueryResults
 type QueryResultIterator interface {
 	// Unmarshals a single result row into valuePtr, and then closes the iterator.
-	One(valuePtr any) error
+	One(ctx context.Context, valuePtr any) error
 	// Unmarshals the next result row into valuePtr.
 	// Returns false when reaching end of result set.
-	Next(valuePtr any) bool
+	Next(ctx context.Context, valuePtr any) bool
 	// Retrieves raw JSON bytes for the next result row.
 	NextBytes() []byte
 	// Closes the iterator.  Returns any row-level errors seen during iteration.

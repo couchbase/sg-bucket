@@ -9,16 +9,22 @@
 package sgbucket
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
+func testCtx(t *testing.T) context.Context {
+	return context.Background() // return background for tests, to match sync_gateway interfaces
+}
+
 // Just verify that the calls to the emit() fn show up in the output.
 func TestEmitFunction(t *testing.T) {
-	mapper := NewJSMapFunction(`function(doc) {emit("key", "value"); emit("k2","v2")}`, 0)
-	rows, err := mapper.CallFunction(&JSMapFunctionInput{`{}`, "doc1", 0, 0, nil})
+	ctx := testCtx(t)
+	mapper := NewJSMapFunction(ctx, `function(doc) {emit("key", "value"); emit("k2","v2")}`, 0)
+	rows, err := mapper.CallFunction(ctx, &JSMapFunctionInput{`{}`, "doc1", 0, 0, nil})
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equal(t, 2, len(rows))
 	assert.Equal(t, &ViewRow{ID: "doc1", Key: "key", Value: "value"}, rows[0])
@@ -26,14 +32,16 @@ func TestEmitFunction(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
-	mapper := NewJSMapFunction(`function(doc) {while(true) {}}`, 1)
-	_, err := mapper.CallFunction(&JSMapFunctionInput{`{}`, "doc1", 0, 0, nil})
+	ctx := testCtx(t)
+	mapper := NewJSMapFunction(ctx, `function(doc) {while(true) {}}`, 1)
+	_, err := mapper.CallFunction(ctx, &JSMapFunctionInput{`{}`, "doc1", 0, 0, nil})
 	assert.ErrorIs(t, err, ErrJSTimeout)
 }
 
 func testMap(t *testing.T, mapFn string, doc string) []*ViewRow {
-	mapper := NewJSMapFunction(mapFn, 0)
-	rows, err := mapper.CallFunction(&JSMapFunctionInput{doc, "doc1", 0, 0, nil})
+	ctx := testCtx(t)
+	mapper := NewJSMapFunction(ctx, mapFn, 0)
+	rows, err := mapper.CallFunction(ctx, &JSMapFunctionInput{doc, "doc1", 0, 0, nil})
 	assertNoError(t, err, fmt.Sprintf("CallFunction failed on %s", doc))
 	return rows
 }
@@ -66,16 +74,18 @@ func TestKeyTypes(t *testing.T) {
 
 // Empty/no-op map fn
 func TestEmptyJSMapFunction(t *testing.T) {
-	mapper := NewJSMapFunction(`function(doc) {}`, 0)
-	rows, err := mapper.CallFunction(&JSMapFunctionInput{`{"key": "k", "value": "v"}`, "doc1", 0, 0, nil})
+	ctx := testCtx(t)
+	mapper := NewJSMapFunction(ctx, `function(doc) {}`, 0)
+	rows, err := mapper.CallFunction(ctx, &JSMapFunctionInput{`{"key": "k", "value": "v"}`, "doc1", 0, 0, nil})
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equal(t, 0, len(rows))
 }
 
 // Test meta object
 func TestMeta(t *testing.T) {
-	mapper := NewJSMapFunction(`function(doc,meta) {if (meta.id!="doc1") throw("bad ID");}`, 0)
-	rows, err := mapper.CallFunction(&JSMapFunctionInput{`{"key": "k", "value": "v"}`, "doc1", 0, 0, nil})
+	ctx := testCtx(t)
+	mapper := NewJSMapFunction(ctx, `function(doc,meta) {if (meta.id!="doc1") throw("bad ID");}`, 0)
+	rows, err := mapper.CallFunction(ctx, &JSMapFunctionInput{`{"key": "k", "value": "v"}`, "doc1", 0, 0, nil})
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equal(t, 0, len(rows))
 }
@@ -85,23 +95,26 @@ func TestXattrs(t *testing.T) {
 		"_sync": []byte(`{"hey":"hey"}`),
 		"user":  []byte(`{"a":1}`),
 	}
-	mapper := NewJSMapFunction(`function(doc,meta) {if (meta.xattrs._sync.hey != "hey") throw("bad xattrs");}`, 0)
-	rows, err := mapper.CallFunction(&JSMapFunctionInput{`{"key": "k", "value": "v"}`, "doc1", 0, 0, xattrs})
+	ctx := testCtx(t)
+	mapper := NewJSMapFunction(ctx, `function(doc,meta) {if (meta.xattrs._sync.hey != "hey") throw("bad xattrs");}`, 0)
+	rows, err := mapper.CallFunction(ctx, &JSMapFunctionInput{`{"key": "k", "value": "v"}`, "doc1", 0, 0, xattrs})
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equal(t, 0, len(rows))
 }
 
 func TestNoXattrs(t *testing.T) {
-	mapper := NewJSMapFunction(`function(doc,meta) {if (meta.xattrs !== undefined) throw("unexpected xattrs");}`, 0)
-	rows, err := mapper.CallFunction(&JSMapFunctionInput{`{"key": "k", "value": "v"}`, "doc1", 0, 0, nil})
+	ctx := testCtx(t)
+	mapper := NewJSMapFunction(ctx, `function(doc,meta) {if (meta.xattrs !== undefined) throw("unexpected xattrs");}`, 0)
+	rows, err := mapper.CallFunction(ctx, &JSMapFunctionInput{`{"key": "k", "value": "v"}`, "doc1", 0, 0, nil})
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equal(t, 0, len(rows))
 }
 
 // Test the public API
 func TestPublicJSMapFunction(t *testing.T) {
-	mapper := NewJSMapFunction(`function(doc) {emit(doc.key, doc.value);}`, 0)
-	rows, err := mapper.CallFunction(&JSMapFunctionInput{`{"key": "k", "value": "v"}`, "doc1", 0, 0, nil})
+	ctx := testCtx(t)
+	mapper := NewJSMapFunction(ctx, `function(doc) {emit(doc.key, doc.value);}`, 0)
+	rows, err := mapper.CallFunction(ctx, &JSMapFunctionInput{`{"key": "k", "value": "v"}`, "doc1", 0, 0, nil})
 	assertNoError(t, err, "CallFunction failed")
 	assert.Equal(t, 1, len(rows))
 	assert.Equal(t, &ViewRow{ID: "doc1", Key: "k", Value: "v"}, rows[0])

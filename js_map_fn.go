@@ -9,6 +9,7 @@
 package sgbucket
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -71,18 +72,19 @@ type JSMapFunctionInput struct {
 	Xattrs map[string][]byte // Xattrs, each value marshaled to JSON
 }
 
-func NewJSMapFunction(fnSource string, timeout time.Duration) *JSMapFunction {
+func NewJSMapFunction(ctx context.Context, fnSource string, timeout time.Duration) *JSMapFunction {
 	return &JSMapFunction{
-		JSServer: NewJSServer(fnSource, timeout, kTaskCacheSize,
-			func(fnSource string, timeout time.Duration) (JSServerTask, error) {
+		JSServer: NewJSServer(ctx, fnSource, timeout, kTaskCacheSize,
+			func(ctx context.Context, fnSource string, timeout time.Duration) (JSServerTask, error) {
 				return newJsMapTask(fnSource, timeout)
 			}),
 	}
 }
 
 // Calls a jsMapTask.
-func (mapper *JSMapFunction) CallFunction(input *JSMapFunctionInput) ([]*ViewRow, error) {
-	result1, err := mapper.Call(JSONString(input.Doc), MakeMeta(input))
+func (mapper *JSMapFunction) CallFunction(ctx context.Context, input *JSMapFunctionInput) ([]*ViewRow, error) {
+	fmt.Println(JSONString(input.Doc))
+	result1, err := mapper.Call(ctx, JSONString(input.Doc), MakeMeta(input))
 	if err != nil {
 		return nil, err
 	}

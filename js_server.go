@@ -9,6 +9,8 @@
 package sgbucket
 
 import (
+	"context"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -25,17 +27,17 @@ type JSServer struct {
 // Abstract interface for a callable interpreted function. JSRunner implements this.
 type JSServerTask interface {
 	SetFunction(funcSource string) (bool, error)
-	Call(inputs ...interface{}) (interface{}, error)
+	Call(ctx context.Context, inputs ...interface{}) (interface{}, error)
 }
 
 // Factory function that creates JSServerTasks.
-type JSServerTaskFactory func(fnSource string, timeout time.Duration) (JSServerTask, error)
+type JSServerTaskFactory func(ctx context.Context, fnSource string, timeout time.Duration) (JSServerTask, error)
 
 // Creates a new JSServer that will run a JavaScript function.
 // 'funcSource' should look like "function(x,y) { ... }"
-func NewJSServer(funcSource string, timeout time.Duration, maxTasks int, factory JSServerTaskFactory) *JSServer {
+func NewJSServer(ctx context.Context, funcSource string, timeout time.Duration, maxTasks int, factory JSServerTaskFactory) *JSServer {
 	if factory == nil {
-		factory = func(fnSource string, timeout time.Duration) (JSServerTask, error) {
+		factory = func(ctx context.Context, fnSource string, timeout time.Duration) (JSServerTask, error) {
 			return NewJSRunner(fnSource, timeout)
 		}
 	}
@@ -65,13 +67,13 @@ func (server *JSServer) SetFunction(fnSource string) (bool, error) {
 	return true, nil
 }
 
-func (server *JSServer) getTask() (task JSServerTask, err error) {
+func (server *JSServer) getTask(ctx context.Context) (task JSServerTask, err error) {
 	fnSource := server.Function()
 	select {
 	case task = <-server.tasks:
 		_, err = task.SetFunction(fnSource)
 	default:
-		task, err = server.factory(fnSource, server.timeout)
+		task, err = server.factory(ctx, fnSource, server.timeout)
 	}
 	return
 }
@@ -86,11 +88,13 @@ func (server *JSServer) returnTask(task JSServerTask) {
 
 type WithTaskFunc func(JSServerTask) (interface{}, error)
 
-func (server *JSServer) WithTask(fn WithTaskFunc) (interface{}, error) {
-	task, err := server.getTask()
+func (server *JSServer) WithTask(ctx context.Context, fn WithTaskFunc) (interface{}, error) {
+	task, err := server.getTask(ctx)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("task=%+v\n", task)
+	fmt.Printf("fn=%+v\n", fn)
 	defer server.returnTask(task)
 	return fn(task)
 }
@@ -100,12 +104,12 @@ func (server *JSServer) WithTask(fn WithTaskFunc) (interface{}, error) {
 // passed as parameters to the function.
 // The output value will be nil unless a custom 'After' function has been installed, in which
 // case it'll be the result of that function.
-func (server *JSServer) CallWithJSON(jsonParams ...string) (interface{}, error) {
+func (server *JSServer) CallWithJSON(ctx context.Context, jsonParams ...string) (interface{}, error) {
 	goParams := make([]JSONString, len(jsonParams))
 	for i, str := range jsonParams {
 		goParams[i] = JSONString(str)
 	}
-	return server.Call(goParams)
+	return server.Call(ctx, goParams)
 }
 
 // Public thread-safe entry point for invoking the JS function.
@@ -113,8 +117,8 @@ func (server *JSServer) CallWithJSON(jsonParams ...string) (interface{}, error) 
 // JSON can be passed in as a value of type JSONString (a wrapper type for string.)
 // The output value will be nil unless a custom 'After' function has been installed, in which
 // case it'll be the result of that function.
-func (server *JSServer) Call(goParams ...interface{}) (interface{}, error) {
-	return server.WithTask(func(task JSServerTask) (interface{}, error) {
-		return task.Call(goParams...)
+func (server *JSServer) Call(ctx context.Context, goParams ...interface{}) (interface{}, error) {
+	return server.WithTask(ctx, func(task JSServerTask) (interface{}, error) {
+		return task.Call(ctx, goParams...)
 	})
 }

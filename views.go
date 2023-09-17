@@ -11,6 +11,7 @@ licenses/APL2.txt.
 package sgbucket
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -24,21 +25,21 @@ import (
 // Supported parameters are: descending, endkey, group, group_level, include_docs, inclusive_end,
 // key, keys, limit, reduce, stale, startkey
 type ViewStore interface {
-	GetDDoc(docname string) (DesignDoc, error)      // Gets a DesignDoc given its name.
-	GetDDocs() (map[string]DesignDoc, error)        // Gets all the DesignDocs.
-	PutDDoc(docname string, value *DesignDoc) error // Stores a design doc. (Must not be nil.)
-	DeleteDDoc(docname string) error                // Deletes a design doc.
+	GetDDoc(docname string) (DesignDoc, error)                           // Gets a DesignDoc given its name.
+	GetDDocs() (map[string]DesignDoc, error)                             // Gets all the DesignDocs.
+	PutDDoc(ctx context.Context, docname string, value *DesignDoc) error // Stores a design doc. (Must not be nil.)
+	DeleteDDoc(docname string) error                                     // Deletes a design doc.
 
 	// Issues a view query, and returns the results all at once.
 	// Parameters:
 	// - ddoc: The view's design doc's name
 	// - name: The view's name
 	// - params: Parameters defining the query
-	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
+	View(ctx context.Context, ddoc, name string, params map[string]interface{}) (ViewResult, error)
 
 	// Issues a view query, and returns an iterator over result rows. Depending on the
 	// implementation this may have lower latency and use less memory.
-	ViewQuery(ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
+	ViewQuery(ctx context.Context, ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
 }
 
 // Result of a view query.
@@ -497,7 +498,7 @@ func (r *ViewResult) NextBytes() []byte {
 
 }
 
-func (r *ViewResult) Next(valuePtr interface{}) bool {
+func (r *ViewResult) Next(_ context.Context, valuePtr interface{}) bool {
 	if len(r.Errors) > 0 || r.iterErr != nil {
 		return false
 	}
@@ -523,8 +524,8 @@ func (r *ViewResult) Close() error {
 	return nil
 }
 
-func (r *ViewResult) One(valuePtr interface{}) error {
-	if !r.Next(valuePtr) {
+func (r *ViewResult) One(ctx context.Context, valuePtr interface{}) error {
+	if !r.Next(ctx, valuePtr) {
 		err := r.Close()
 		if err != nil {
 			return err
