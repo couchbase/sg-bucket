@@ -147,7 +147,6 @@ func (runner *JSRunner) CallWithJSON(inputs ...string) (interface{}, error) {
 	if runner.Before != nil {
 		runner.Before()
 	}
-	fmt.Println("inputs=", inputs)
 	var result otto.Value
 	var err error
 	if runner.fn.IsUndefined() {
@@ -173,7 +172,6 @@ func (runner *JSRunner) Call(ctx context.Context, inputs ...interface{}) (_ inte
 	if runner.Before != nil {
 		runner.Before()
 	}
-	fmt.Println("non JSON inputs=", inputs)
 
 	var result otto.Value
 	if runner.fn.IsUndefined() {
@@ -186,7 +184,6 @@ func (runner *JSRunner) Call(ctx context.Context, inputs ...interface{}) (_ inte
 					return nil, err
 				}
 			}
-			fmt.Println("input", input)
 			inputJS[i], err = runner.js.ToValue(input)
 			if err != nil {
 				return nil, fmt.Errorf("Couldn't convert %#v to JS: %s", input, err)
@@ -222,11 +219,8 @@ func (runner *JSRunner) Call(ctx context.Context, inputs ...interface{}) (_ inte
 				}
 			}()
 		}
-		fmt.Println("inputJS", inputJS)
-		fmt.Printf("\nrunner %+v", runner.fn)
 
 		result, err = runner.fn.Call(runner.fn, inputJS...)
-		fmt.Println("err=", err)
 		if completed != nil {
 			close(completed)
 		}

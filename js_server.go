@@ -10,7 +10,6 @@ package sgbucket
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -93,8 +92,6 @@ func (server *JSServer) WithTask(ctx context.Context, fn WithTaskFunc) (interfac
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("task=%+v\n", task)
-	fmt.Printf("fn=%+v\n", fn)
 	defer server.returnTask(task)
 	return fn(task)
 }

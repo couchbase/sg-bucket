@@ -83,7 +83,6 @@ func NewJSMapFunction(ctx context.Context, fnSource string, timeout time.Duratio
 
 // Calls a jsMapTask.
 func (mapper *JSMapFunction) CallFunction(ctx context.Context, input *JSMapFunctionInput) ([]*ViewRow, error) {
-	fmt.Println(JSONString(input.Doc))
 	result1, err := mapper.Call(ctx, JSONString(input.Doc), MakeMeta(input))
 	if err != nil {
 		return nil, err
