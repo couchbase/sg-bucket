@@ -9,6 +9,7 @@
 package sgbucket
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -146,7 +147,6 @@ func (runner *JSRunner) CallWithJSON(inputs ...string) (interface{}, error) {
 	if runner.Before != nil {
 		runner.Before()
 	}
-
 	var result otto.Value
 	var err error
 	if runner.fn.IsUndefined() {
@@ -168,7 +168,7 @@ func (runner *JSRunner) CallWithJSON(inputs ...string) (interface{}, error) {
 }
 
 // Invokes the JS function with Go inputs.
-func (runner *JSRunner) Call(inputs ...interface{}) (_ interface{}, err error) {
+func (runner *JSRunner) Call(ctx context.Context, inputs ...interface{}) (_ interface{}, err error) {
 	if runner.Before != nil {
 		runner.Before()
 	}

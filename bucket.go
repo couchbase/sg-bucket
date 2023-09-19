@@ -49,7 +49,7 @@ const (
 type BucketStore interface {
 	GetName() string       // The bucket's name
 	UUID() (string, error) // The bucket's UUID
-	Close()                // Closes the bucket
+	Close(context.Context) // Closes the bucket
 
 	// A list of all DataStore names in the bucket.
 	ListDataStores() ([]DataStoreName, error)
@@ -67,8 +67,8 @@ type BucketStore interface {
 
 // DynamicDataStoreBucket is an interface that describes a bucket that can change its set of DataStores.
 type DynamicDataStoreBucket interface {
-	CreateDataStore(DataStoreName) error // CreateDataStore creates a new DataStore in the bucket
-	DropDataStore(DataStoreName) error   // DropDataStore drops a DataStore from the bucket
+	CreateDataStore(context.Context, DataStoreName) error // CreateDataStore creates a new DataStore in the bucket
+	DropDataStore(DataStoreName) error                    // DropDataStore drops a DataStore from the bucket
 }
 
 // A type of feed, either TCP or the older TAP
@@ -291,7 +291,7 @@ type KVStore interface {
 	Incr(k string, amt, def uint64, exp uint32) (casOut uint64, err error)
 
 	// Returns the document's current expiration timestamp.
-	GetExpiry(k string) (expiry uint32, err error)
+	GetExpiry(ctx context.Context, k string) (expiry uint32, err error)
 
 	// Tests whether a document exists.
 	// A tombstone with a nil value is still considered to exist.
@@ -311,7 +311,7 @@ type SubdocStore interface {
 	// - subdocPath: The JSON path of the property to set
 	// - cas: Expected CAS value, or 0 to ignore CAS conflicts
 	// - value: The value to set. Will be marshaled to JSON.
-	SubdocInsert(k string, subdocPath string, cas uint64, value interface{}) error
+	SubdocInsert(ctx context.Context, k string, subdocPath string, cas uint64, value interface{}) error
 
 	// Gets the raw JSON value of a document property.
 	// If the property doesn't exist, returns ErrPathNotFound.
@@ -323,7 +323,7 @@ type SubdocStore interface {
 	// - value: The property value as JSON
 	// - casOut: The document's current CAS (sequence) number.
 	// - err: Error, if any.
-	GetSubDocRaw(k string, subdocPath string) (value []byte, casOut uint64, err error)
+	GetSubDocRaw(ctx context.Context, k string, subdocPath string) (value []byte, casOut uint64, err error)
 
 	// Sets an individual JSON property in a document.
 	// Creates the document if it didn't exist.
@@ -337,7 +337,7 @@ type SubdocStore interface {
 	// Return values:
 	// - casOut: The document's new CAS
 	// - err: Error, if any
-	WriteSubDoc(k string, subdocPath string, cas uint64, value []byte) (casOut uint64, err error)
+	WriteSubDoc(ctx context.Context, k string, subdocPath string, cas uint64, value []byte) (casOut uint64, err error)
 }
 
 // An XattrStore is a data store that supports extended attributes, i.e. document metadata.
@@ -351,7 +351,7 @@ type XattrStore interface {
 	// - opts: Options; use PreserveExpiry to avoid setting expiry
 	// - v: The value to set. Will be marshaled to JSON unless it is a `[]byte` or `*[]byte`
 	// - xv: The xattr value to set. Will be marshaled to JSON unless it is a `[]byte` or `*[]byte`
-	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
+	WriteCasWithXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
 
 	// Writes a document and updates an xattr value.
 	// Parameters:
@@ -364,31 +364,31 @@ type XattrStore interface {
 	// - xattrValue: The raw xattr value to set, or nil to *delete*
 	// - isDelete: // FIXME: the meaning of this is unknown...
 	// - deleteBody: If true, the document value will be deleted (set to nil)
-	WriteWithXattr(k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
+	WriteWithXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
 
 	// Updates an xattr of a document.
 	// Parameters:
 	// - k: The key (document ID)
 	// - xattrKey: The name of the xattr to update
 	// - xattrValue: The raw xattr value to set, or nil to *delete*
-	SetXattr(k string, xattrKey string, xattrValue []byte) (casOut uint64, err error)
+	SetXattr(ctx context.Context, k string, xattrKey string, xattrValue []byte) (casOut uint64, err error)
 
 	// Removes an xattr. Fails on a CAS mismatch.
 	// - k: The key (document ID)
 	// - xattrKey: The name of the xattr to update
 	// - cas: Expected CAS value
-	RemoveXattr(k string, xattrKey string, cas uint64) (err error)
+	RemoveXattr(ctx context.Context, k string, xattrKey string, cas uint64) (err error)
 
 	// Removes any number of xattrs from a document.
 	// - k: The key (document ID)
 	// - xattrKeys: Any number of xattr keys
-	DeleteXattrs(k string, xattrKeys ...string) (err error)
+	DeleteXattrs(ctx context.Context, k string, xattrKeys ...string) (err error)
 
 	// Gets the value of an xattr.
 	// - k: The key (document ID)
 	// - xattrKey: The name of the xattr to update
 	// - xv: The xattr value will be unmarshaled into this, if it exists
-	GetXattr(k string, xattrKey string, xv interface{}) (casOut uint64, err error)
+	GetXattr(ctx context.Context, k string, xattrKey string, xv interface{}) (casOut uint64, err error)
 
 	// Gets a document's value as well as an xattr and optionally a user xattr.
 	// (Note: A 'user xattr' is one whose key doesn't start with an underscore.)
@@ -398,12 +398,12 @@ type XattrStore interface {
 	// - rv: The value will be unmarshaled into this, if it exists
 	// - xv: The xattr value will be unmarshaled into this, if it exists
 	// - xv: The user xattr value will be unmarshaled into this, if it exists
-	GetWithXattr(k string, xattrKey string, userXattrKey string, rv interface{}, xv interface{}, uxv interface{}) (cas uint64, err error)
+	GetWithXattr(ctx context.Context, k string, xattrKey string, userXattrKey string, rv interface{}, xv interface{}, uxv interface{}) (cas uint64, err error)
 
 	// Deletes a document's value and the value of an xattr.
 	// - k: The key (document ID)
 	// - xattrKey: The name of the xattr to remove
-	DeleteWithXattr(k string, xattrKey string) error
+	DeleteWithXattr(ctx context.Context, k string, xattrKey string) error
 
 	// Interactive update of a document with MVCC.
 	// See the documentation of WriteUpdateWithXattrFunc for details.
@@ -415,29 +415,29 @@ type XattrStore interface {
 	// - opts: Options; use PreserveExpiry to avoid setting expiry
 	// - previous: The current document, if known. Will be used in place of the initial Get
 	// - callback: The callback that mutates the document
-	WriteUpdateWithXattr(k string, xattrKey string, userXattrKey string, exp uint32, opts *MutateInOptions, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
+	WriteUpdateWithXattr(ctx context.Context, k string, xattrKey string, userXattrKey string, exp uint32, opts *MutateInOptions, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
 
 	// Creates a tombstone document, with an xattr, only if it doesn't already exist.
-	InsertXattr(k string, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
+	InsertXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
 
 	// Creates a document, with an xattr, only if it doesn't already exist. (?)
-	InsertBodyAndXattr(k string, xattrKey string, exp uint32, v interface{}, xv interface{}) (casOut uint64, err error)
+	InsertBodyAndXattr(ctx context.Context, k string, xattrKey string, exp uint32, v interface{}, xv interface{}) (casOut uint64, err error)
 
 	// Updates a document's xattr.
-	UpdateXattr(k string, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
+	UpdateXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
 
 	// Updates a document's value and an xattr.
-	UpdateBodyAndXattr(k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
+	UpdateBodyAndXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
 
 	// Updates an xattr and deletes the body (making the doc a tombstone.) (?)
-	UpdateXattrDeleteBody(k, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
+	UpdateXattrDeleteBody(ctx context.Context, k, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
 
 	// Deletes the document's body. Updates the CAS and CRC32 macros in the specified xattr.
-	DeleteBody(k string, xattrKey string, exp uint32, cas uint64) (casOut uint64, err error)
+	DeleteBody(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64) (casOut uint64, err error)
 
 	// Deletes the document's body and an xattr.
 	// Unlike DeleteWithXattr, this fails if the doc is a tombstone (no body).
-	DeleteBodyAndXattr(k string, xattrKey string) error
+	DeleteBodyAndXattr(ctx context.Context, k string, xattrKey string) error
 }
 
 // Utilities for creating/deleting user xattrs. Used by tests.
