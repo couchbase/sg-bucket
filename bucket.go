@@ -367,7 +367,7 @@ type XattrStore interface {
 	// - opts: Options; use PreserveExpiry to avoid setting expiry
 	// - v: The value to set. Will be marshaled to JSON unless it is a `[]byte` or `*[]byte`
 	// - xv: The xattr value to set. Will be marshaled to JSON unless it is a `[]byte` or `*[]byte`
-	WriteCasWithXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
+	WriteCasWithXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, v interface{}, xv interface{}, opts *MutateInOptions) (casOut uint64, err error)
 
 	// Writes a document and updates an xattr value.
 	// Parameters:
@@ -380,7 +380,7 @@ type XattrStore interface {
 	// - xattrValue: The raw xattr value to set, or nil to *delete*
 	// - isDelete: // FIXME: the meaning of this is unknown...
 	// - deleteBody: If true, the document value will be deleted (set to nil)
-	WriteWithXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
+	WriteWithXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, value []byte, xattrValue []byte, isDelete bool, deleteBody bool, opts *MutateInOptions) (casOut uint64, err error)
 
 	// Updates an xattr of a document.
 	// Parameters:
@@ -431,8 +431,8 @@ type XattrStore interface {
 	// - opts: Options; use PreserveExpiry to avoid setting expiry
 	// - previous: The current document, if known. Will be used in place of the initial Get
 	// - callback: The callback that mutates the document
-	WriteUpdateWithXattr(ctx context.Context, k string, xattrKey string, userXattrKey string, exp uint32, opts *MutateInOptions, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
-	
+	WriteUpdateWithXattr(ctx context.Context, k string, xattrKey string, userXattrKey string, exp uint32, previous *BucketDocument, opts *MutateInOptions, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
+
 	// Updates a document's xattr.
 	UpdateXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, xv interface{}, opts *MutateInOptions) (casOut uint64, err error)
 
