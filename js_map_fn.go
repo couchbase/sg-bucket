@@ -9,6 +9,7 @@
 package sgbucket
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -62,18 +63,18 @@ type JSMapFunction struct {
 	*JSServer
 }
 
-func NewJSMapFunction(fnSource string, timeout time.Duration) *JSMapFunction {
+func NewJSMapFunction(ctx context.Context, fnSource string, timeout time.Duration) *JSMapFunction {
 	return &JSMapFunction{
-		JSServer: NewJSServer(fnSource, timeout, kTaskCacheSize,
-			func(fnSource string, timeout time.Duration) (JSServerTask, error) {
+		JSServer: NewJSServer(ctx, fnSource, timeout, kTaskCacheSize,
+			func(ctx context.Context, fnSource string, timeout time.Duration) (JSServerTask, error) {
 				return newJsMapTask(fnSource, timeout)
 			}),
 	}
 }
 
 // Calls a jsMapTask.
-func (mapper *JSMapFunction) CallFunction(doc string, docid string, vbNo uint32, vbSeq uint64) ([]*ViewRow, error) {
-	result1, err := mapper.Call(JSONString(doc), MakeMeta(docid, vbNo, vbSeq))
+func (mapper *JSMapFunction) CallFunction(ctx context.Context, doc string, docid string, vbNo uint32, vbSeq uint64) ([]*ViewRow, error) {
+	result1, err := mapper.Call(ctx, JSONString(doc), MakeMeta(docid, vbNo, vbSeq))
 	if err != nil {
 		return nil, err
 	}
