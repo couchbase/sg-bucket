@@ -11,6 +11,7 @@ licenses/APL2.txt.
 package sgbucket
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -294,7 +295,7 @@ func (r *ViewResult) NextBytes() []byte {
 
 }
 
-func (r *ViewResult) Next(valuePtr interface{}) bool {
+func (r *ViewResult) Next(_ context.Context, valuePtr interface{}) bool {
 	if len(r.Errors) > 0 || r.iterErr != nil {
 		return false
 	}
@@ -324,8 +325,8 @@ func (r *ViewResult) Close() error {
 	return nil
 }
 
-func (r *ViewResult) One(valuePtr interface{}) error {
-	if !r.Next(valuePtr) {
+func (r *ViewResult) One(ctx context.Context, valuePtr interface{}) error {
+	if !r.Next(ctx, valuePtr) {
 		err := r.Close()
 		if err != nil {
 			return err

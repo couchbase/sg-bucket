@@ -9,6 +9,7 @@
 package sgbucket
 
 import (
+	"context"
 	"errors"
 	"expvar"
 	"fmt"
@@ -54,7 +55,7 @@ const (
 type BucketStore interface {
 	GetName() string       // GetName returns the Bucket name
 	UUID() (string, error) // UUID returns a UUID for the bucket
-	Close()                // Close closes the bucket
+	Close(context.Context) // Close closes the bucket
 
 	ListDataStores() ([]DataStoreName, error)        // ListDataStores returns a list of all DataStore names in the bucket
 	DefaultDataStore() DataStore                     // DefaultDataStore returns the default data store for the bucket
@@ -67,14 +68,14 @@ type BucketStore interface {
 
 // DynamicDataStoreBucket is an interface that describes a bucket that can change its set of DataStores.
 type DynamicDataStoreBucket interface {
-	CreateDataStore(DataStoreName) error // CreateDataStore creates a new DataStore in the bucket
-	DropDataStore(DataStoreName) error   // DropDataStore drops a DataStore from the bucket
+	CreateDataStore(context.Context, DataStoreName) error // CreateDataStore creates a new DataStore in the bucket
+	DropDataStore(DataStoreName) error                    // DropDataStore drops a DataStore from the bucket
 }
 
 // MutationFeedStore is a store that supports a DCP or TAP streaming mutation feed.
 type MutationFeedStore interface {
 	GetMaxVbno() (uint16, error)
-	StartDCPFeed(args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
+	StartDCPFeed(ctx context.Context, args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
 	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
 }
 
@@ -124,42 +125,42 @@ type KVStore interface {
 	Remove(k string, cas uint64) (casOut uint64, err error)
 	Update(k string, exp uint32, callback UpdateFunc) (casOut uint64, err error)
 	Incr(k string, amt, def uint64, exp uint32) (uint64, error)
-	GetExpiry(k string) (expiry uint32, err error)
+	GetExpiry(ctx context.Context, k string) (expiry uint32, err error)
 	Exists(k string) (exists bool, err error)
 }
 
 // SubdocStore describes methods that can be used to operate on parts of a document with a subdoc operation.
 type SubdocStore interface {
-	SubdocInsert(docID string, fieldPath string, cas uint64, value interface{}) error
-	GetSubDocRaw(k string, subdocKey string) (value []byte, casOut uint64, err error)
-	WriteSubDoc(k string, subdocKey string, cas uint64, value []byte) (casOut uint64, err error)
+	SubdocInsert(ctx context.Context, docID string, fieldPath string, cas uint64, value interface{}) error
+	GetSubDocRaw(ctx context.Context, k string, subdocKey string) (value []byte, casOut uint64, err error)
+	WriteSubDoc(ctx context.Context, k string, subdocKey string, cas uint64, value []byte) (casOut uint64, err error)
 }
 
 // A ViewStore is a data store with a map-reduce query interface.
 type ViewStore interface {
 	GetDDoc(docname string) (DesignDoc, error)
 	GetDDocs() (map[string]DesignDoc, error)
-	PutDDoc(docname string, value *DesignDoc) error
+	PutDDoc(ctx context.Context, docname string, value *DesignDoc) error
 	DeleteDDoc(docname string) error
 
 	// View issues a view query, and returns the results as a ViewResult
-	View(ddoc, name string, params map[string]interface{}) (ViewResult, error)
+	View(ctx context.Context, ddoc, name string, params map[string]interface{}) (ViewResult, error)
 
 	// ViewQuery issues a view query, and returns an iterator supporting row-level unmarshalling of the results.
-	ViewQuery(ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
+	ViewQuery(ctx context.Context, ddoc, name string, params map[string]interface{}) (QueryResultIterator, error)
 }
 
 // An XattrStore is a data store that supports extended attributes
 type XattrStore interface {
-	WriteCasWithXattr(k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
-	WriteWithXattr(k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
-	SetXattr(k string, xattrKey string, xv []byte) (casOut uint64, err error)
-	RemoveXattr(k string, xattrKey string, cas uint64) (err error)
-	DeleteXattrs(k string, xattrKeys ...string) (err error)
-	GetXattr(k string, xattrKey string, xv interface{}) (casOut uint64, err error)
-	GetWithXattr(k string, xattrKey string, userXattrKey string, rv interface{}, xv interface{}, uxv interface{}) (cas uint64, err error)
-	DeleteWithXattr(k string, xattrKey string) error
-	WriteUpdateWithXattr(k string, xattrKey string, userXattrKey string, exp uint32, opts *MutateInOptions, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
+	WriteCasWithXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
+	WriteWithXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
+	SetXattr(ctx context.Context, k string, xattrKey string, xv []byte) (casOut uint64, err error)
+	RemoveXattr(ctx context.Context, k string, xattrKey string, cas uint64) (err error)
+	DeleteXattrs(ctx context.Context, k string, xattrKeys ...string) (err error)
+	GetXattr(ctx context.Context, k string, xattrKey string, xv interface{}) (casOut uint64, err error)
+	GetWithXattr(ctx context.Context, k string, xattrKey string, userXattrKey string, rv interface{}, xv interface{}, uxv interface{}) (cas uint64, err error)
+	DeleteWithXattr(ctx context.Context, k string, xattrKey string) error
+	WriteUpdateWithXattr(kctx context.Context, string, xattrKey string, userXattrKey string, exp uint32, opts *MutateInOptions, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
 }
 
 // A DeletableStore is a data store that supports deletion of the underlying store.
@@ -174,10 +175,10 @@ type FlushableStore interface {
 
 // Common query iterator interface,  implemented by sgbucket.ViewResult, gocb.ViewResults, and gocb.QueryResults
 type QueryResultIterator interface {
-	One(valuePtr interface{}) error // Unmarshal a single result row into valuePtr, and then close the iterator
-	Next(valuePtr interface{}) bool // Unmarshal the next result row into valuePtr.  Returns false when reaching end of result set
-	NextBytes() []byte              // Retrieve raw bytes for the next result row
-	Close() error                   // Closes the iterator.  Returns any row-level errors seen during iteration.
+	One(ctx context.Context, valuePtr interface{}) error // Unmarshal a single result row into valuePtr, and then close the iterator
+	Next(ctx context.Context, valuePtr interface{}) bool // Unmarshal the next result row into valuePtr.  Returns false when reaching end of result set
+	NextBytes() []byte                                   // Retrieve raw bytes for the next result row
+	Close() error                                        // Closes the iterator.  Returns any row-level errors seen during iteration.
 }
 
 // A set of option flags for the Write method.
