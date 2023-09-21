@@ -144,23 +144,39 @@ type UpsertOptions struct {
 	PreserveExpiry bool // GoCB v2 option
 }
 
-// MutateInOptions is a struct of options for mutate in operations, to be used by both sync gateway rosmar
+// MutateInOptions is a struct of options for mutate in operations, to be used by both sync gateway and rosmar
 type MutateInOptions struct {
 	PreserveExpiry bool // Used for imports - CBG-1563
-	Spec           []MutateInSpec
+	MacroExpansion []MacroExpansionSpec
 }
 
-// MutateInSpec is a path, value pair where the path is a xattr path and the value to  be injected into that place
-type MutateInSpec struct {
-	Path  string
-	Value interface{}
+// MacroExpansionSpec is a path, value pair where the path is a xattr path and the macro to be used to populate that path
+type MacroExpansionSpec struct {
+	Path string
+	Type MacroExpansionType
+}
+
+// MacroExpansionType defines the macro expansion types used by Sync Gateway and supported by CBS and rosmar
+type MacroExpansionType int
+
+const (
+	MacroCas    MacroExpansionType = iota // Document CAS
+	MacroCrc32c                           // crc32c hash of the document body
+)
+
+var (
+	macroExpansionTypeStrings = []string{"CAS", "crc32c"}
+)
+
+func (t MacroExpansionType) String() string {
+	return macroExpansionTypeStrings[t]
 }
 
 // UpsertSpec creates a upsert spec for macro expansion mutate in operations
-func UpsertSpec(specPath string, val interface{}) MutateInSpec {
-	return MutateInSpec{
-		Path:  specPath,
-		Value: val,
+func NewMacroExpansionSpec(specPath string, macro MacroExpansionType) MacroExpansionSpec {
+	return MacroExpansionSpec{
+		Path: specPath,
+		Type: macro,
 	}
 }
 
@@ -351,7 +367,7 @@ type XattrStore interface {
 	// - opts: Options; use PreserveExpiry to avoid setting expiry
 	// - v: The value to set. Will be marshaled to JSON unless it is a `[]byte` or `*[]byte`
 	// - xv: The xattr value to set. Will be marshaled to JSON unless it is a `[]byte` or `*[]byte`
-	WriteCasWithXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
+	WriteCasWithXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, v interface{}, xv interface{}, opts *MutateInOptions) (casOut uint64, err error)
 
 	// Writes a document and updates an xattr value.
 	// Parameters:
@@ -364,7 +380,7 @@ type XattrStore interface {
 	// - xattrValue: The raw xattr value to set, or nil to *delete*
 	// - isDelete: // FIXME: the meaning of this is unknown...
 	// - deleteBody: If true, the document value will be deleted (set to nil)
-	WriteWithXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, value []byte, xattrValue []byte, isDelete bool, deleteBody bool) (casOut uint64, err error)
+	WriteWithXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, value []byte, xattrValue []byte, isDelete bool, deleteBody bool, opts *MutateInOptions) (casOut uint64, err error)
 
 	// Updates an xattr of a document.
 	// Parameters:
@@ -415,29 +431,16 @@ type XattrStore interface {
 	// - opts: Options; use PreserveExpiry to avoid setting expiry
 	// - previous: The current document, if known. Will be used in place of the initial Get
 	// - callback: The callback that mutates the document
-	WriteUpdateWithXattr(ctx context.Context, k string, xattrKey string, userXattrKey string, exp uint32, opts *MutateInOptions, previous *BucketDocument, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
-
-	// Creates a tombstone document, with an xattr, only if it doesn't already exist.
-	InsertXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
-
-	// Creates a document, with an xattr, only if it doesn't already exist. (?)
-	InsertBodyAndXattr(ctx context.Context, k string, xattrKey string, exp uint32, v interface{}, xv interface{}) (casOut uint64, err error)
+	WriteUpdateWithXattr(ctx context.Context, k string, xattrKey string, userXattrKey string, exp uint32, previous *BucketDocument, opts *MutateInOptions, callback WriteUpdateWithXattrFunc) (casOut uint64, err error)
 
 	// Updates a document's xattr.
-	UpdateXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
-
-	// Updates a document's value and an xattr.
-	UpdateBodyAndXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions, v interface{}, xv interface{}) (casOut uint64, err error)
+	UpdateXattr(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, xv interface{}, opts *MutateInOptions) (casOut uint64, err error)
 
 	// Updates an xattr and deletes the body (making the doc a tombstone.) (?)
-	UpdateXattrDeleteBody(ctx context.Context, k, xattrKey string, exp uint32, cas uint64, xv interface{}) (casOut uint64, err error)
+	UpdateXattrDeleteBody(ctx context.Context, k, xattrKey string, exp uint32, cas uint64, xv interface{}, opts *MutateInOptions) (casOut uint64, err error)
 
 	// Deletes the document's body. Updates the CAS and CRC32 macros in the specified xattr.
-	DeleteBody(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64) (casOut uint64, err error)
-
-	// Deletes the document's body and an xattr.
-	// Unlike DeleteWithXattr, this fails if the doc is a tombstone (no body).
-	DeleteBodyAndXattr(ctx context.Context, k string, xattrKey string) error
+	DeleteBody(ctx context.Context, k string, xattrKey string, exp uint32, cas uint64, opts *MutateInOptions) (casOut uint64, err error)
 }
 
 // Utilities for creating/deleting user xattrs. Used by tests.
