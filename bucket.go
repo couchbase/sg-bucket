@@ -545,4 +545,4 @@ type UpdateFunc func(current []byte) (updated []byte, expiry *uint32, delete boo
 // - deleteDoc: If true, document should be deleted
 // - expiry: If non-nil, points to a new expiry timestamp
 // - err: If non-nil, cancels update.
-type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, userXattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deleteDoc bool, expiry *uint32, err error)
+type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, userXattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deleteDoc bool, expiry *uint32, opts []MacroExpansionSpec, err error)
