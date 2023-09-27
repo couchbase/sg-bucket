@@ -539,10 +539,12 @@ type UpdateFunc func(current []byte) (updated []byte, expiry *uint32, delete boo
 // - xattr: Current value of requested xattr
 // - userXattr: Current value of requested user xattr (if any)
 // - cas: Document's current CAS
+// - inputOpts: Current mutate in options
 // Return values:
 // - updatedDoc: New value to store (or nil to leave unchanged)
 // - updatedXattr: New xattr value to store (or nil to leave unchanged)
 // - deleteDoc: If true, document should be deleted
 // - expiry: If non-nil, points to a new expiry timestamp
+// - opts: Updated mutate in options based off logic performed on the document
 // - err: If non-nil, cancels update.
-type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, userXattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deleteDoc bool, expiry *uint32, opts []MacroExpansionSpec, err error)
+type WriteUpdateWithXattrFunc func(doc []byte, xattr []byte, userXattr []byte, inputOpts *MutateInOptions, cas uint64) (updatedDoc []byte, updatedXattr []byte, deleteDoc bool, expiry *uint32, opts *MutateInOptions, err error)
