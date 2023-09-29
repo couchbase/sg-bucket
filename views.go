@@ -13,11 +13,10 @@ package sgbucket
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
-
-	"gopkg.in/couchbase/gocb.v1"
 )
 
 // A ViewStore is a data store with a map-reduce query interface compatible with CouchDB.
@@ -530,7 +529,7 @@ func (r *ViewResult) One(ctx context.Context, valuePtr interface{}) error {
 		if err != nil {
 			return err
 		}
-		return gocb.ErrNoResults // Using standard gocb error to standardize iterator error handling across gocb and walrus
+		return errors.New("No results returned.")
 	}
 
 	// Ignore any errors occurring after we already have our result
