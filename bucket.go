@@ -452,7 +452,7 @@ type UserXattrStore interface {
 // A DeletableStore is a data store that supports deletion of the underlying persistent storage.
 type DeleteableStore interface {
 	// Closes the store and removes its persistent storage.
-	CloseAndDelete() error
+	CloseAndDelete(ctx context.Context) error
 }
 
 type DeletableBucket = DeleteableStore
