@@ -512,11 +512,12 @@ func (err DocTooBigErr) Error() string {
 
 // Error returned when the input CAS does not match the document's current CAS.
 type CasMismatchErr struct {
+	Key              string
 	Expected, Actual uint64
 }
 
 func (err CasMismatchErr) Error() string {
-	return fmt.Sprintf("cas mismatch: expected %x, really %x", err.Expected, err.Actual)
+	return fmt.Sprintf("cas mismatch for %q: expected %x, really %x", err.Key, err.Expected, err.Actual)
 }
 
 var ErrPathNotFound = errors.New("subdocument path not found in document")
