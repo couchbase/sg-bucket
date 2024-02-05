@@ -127,6 +127,7 @@ type DataStore interface {
 	KVStore
 	XattrStore
 	SubdocStore
+	UserXattrStore
 	TypedErrorStore
 	BucketStoreFeatureIsSupported
 }
