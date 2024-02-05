@@ -36,6 +36,7 @@ const (
 	BucketStoreFeaturePreserveExpiry
 	BucketStoreFeatureCollections
 	BucketStoreFeatureSystemCollections
+	BucketStoreFeatureMobileXDCR
 )
 
 // An error type, used by TypedErrorStore.IsError
