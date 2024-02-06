@@ -36,6 +36,7 @@ const (
 	BucketStoreFeaturePreserveExpiry
 	BucketStoreFeatureCollections
 	BucketStoreFeatureSystemCollections
+	BucketStoreFeatureMobileXDCR
 )
 
 // An error type, used by TypedErrorStore.IsError
@@ -126,6 +127,7 @@ type DataStore interface {
 	KVStore
 	XattrStore
 	SubdocStore
+	UserXattrStore
 	TypedErrorStore
 	BucketStoreFeatureIsSupported
 }

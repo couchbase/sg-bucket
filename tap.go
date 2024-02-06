@@ -28,6 +28,21 @@ const (
 	FeedOpDeletion                         // A document was deleted
 )
 
+func (o FeedOpcode) String() string {
+	switch o {
+	case FeedOpBeginBackfill:
+		return "BeginBackfill"
+	case FeedOpEndBackfill:
+		return "EndBackfill"
+	case FeedOpMutation:
+		return "Mutation"
+	case FeedOpDeletion:
+		return "Deletion"
+	default:
+		return fmt.Sprintf("Opcode(%d)", o)
+	}
+}
+
 type FeedDataType = uint8
 
 const FeedDataTypeRaw FeedDataType = 0 // raw (binary) document
