@@ -368,6 +368,9 @@ type XattrStore interface {
 	// - xattrValues: The raw xattrs value to set, or nil to *delete*
 	WriteWithXattrs(ctx context.Context, k string, exp uint32, cas uint64, value []byte, xattrValue map[string][]byte, opts *MutateInOptions) (casOut uint64, err error)
 
+	// InsertTombstoneWithXattrs inserts a tombstone and updates its xattrs.
+	InsertTombstoneWithXattrs(ctx context.Context, k string, exp uint32, xattrValue map[string][]byte, opts *MutateInOptions) (casOut uint64, err error)
+
 	// WriteTombstoneWithXattrs turns a document into a tombstone and updates its xattrs.
 	WriteTombstoneWithXattrs(ctx context.Context, k string, exp uint32, cas uint64, xattrValue map[string][]byte, opts *MutateInOptions) (casOut uint64, err error)
 
