@@ -368,11 +368,8 @@ type XattrStore interface {
 	// - xattrValues: The raw xattrs value to set, or nil to *delete*
 	WriteWithXattrs(ctx context.Context, k string, exp uint32, cas uint64, value []byte, xattrValue map[string][]byte, opts *MutateInOptions) (casOut uint64, err error)
 
-	// InsertTombstoneWithXattrs inserts a tombstone and updates its xattrs.
-	InsertTombstoneWithXattrs(ctx context.Context, k string, exp uint32, xattrValue map[string][]byte, opts *MutateInOptions) (casOut uint64, err error)
-
-	// WriteTombstoneWithXattrs turns a document into a tombstone and updates its xattrs.
-	WriteTombstoneWithXattrs(ctx context.Context, k string, exp uint32, cas uint64, xattrValue map[string][]byte, opts *MutateInOptions) (casOut uint64, err error)
+	// WriteTombstoneWithXattrs turns a document into a tombstone and updates its xattrs.  If deleteBody=true, will delete an existing body.
+	WriteTombstoneWithXattrs(ctx context.Context, k string, exp uint32, cas uint64, xattrValue map[string][]byte, deleteBody bool, opts *MutateInOptions) (casOut uint64, err error)
 
 	// Updates an xattr of a document.
 	// Parameters:
@@ -404,7 +401,7 @@ type XattrStore interface {
 	// - xattrKeys: The name of the xattrs to get
 	// - rv: The value will be unmarshaled into this, if it exists
 	// - xv: The xattr values will be unmarshaled into this, if they exists
-	GetWithXattrs(ctx context.Context, k string, xattrKeys []string, rv any) (xv map[string][]byte, cas uint64, err error)
+	GetWithXattrs(ctx context.Context, k string, xattrKeys []string) (v []byte, xv map[string][]byte, cas uint64, err error)
 
 	// Deletes a document's value and the value of an xattr.
 	// - k: The key (document ID)
