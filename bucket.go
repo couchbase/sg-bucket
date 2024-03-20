@@ -36,6 +36,7 @@ const (
 	BucketStoreFeatureCollections
 	BucketStoreFeatureSystemCollections
 	BucketStoreFeatureMobileXDCR
+	BucketStoreFeatureMultiXattrSubdocOperations
 )
 
 // An error type, used by TypedErrorStore.IsError
@@ -422,9 +423,6 @@ type XattrStore interface {
 
 	// Updates a document's xattr.
 	UpdateXattrs(ctx context.Context, k string, exp uint32, cas uint64, xv map[string][]byte, opts *MutateInOptions) (casOut uint64, err error)
-
-	// Deletes the document's body. Updates the CAS and CRC32 macros in the specified xattrs.
-	DeleteBody(ctx context.Context, k string, xattrKeys []string, exp uint32, cas uint64, opts *MutateInOptions) (casOut uint64, err error)
 }
 
 // A DeletableStore is a data store that supports deletion of the underlying persistent storage.
