@@ -120,24 +120,19 @@ type BucketStoreFeatureIsSupported interface {
 // A Couchbase Server collection within a bucket is an example of a DataStore.
 // The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
 type DataStore interface {
-	// The datastore name (usually a qualified collection name)
+	// The datastore name (usually a qualified collection name, bucket.scope.collection)
 	GetName() string
-	// DataStoreName() DataStoreName // TODO: Implement later
+	// The name of the datastore, without the bucket name
+	DataStoreName() DataStoreName
 
+	// An integer that uniquely identifies this Collection in its Bucket.
+	// The default collection always has the ID zero.
+	GetCollectionID() uint32
 	KVStore
 	XattrStore
 	SubdocStore
 	TypedErrorStore
 	BucketStoreFeatureIsSupported
-}
-
-// A Collection is the typical type of DataStore. It has an integer identifier.
-type Collection interface {
-	// An integer that uniquely identifies this Collection in its Bucket.
-	// The default collection always has the ID zero.
-	GetCollectionID() uint32
-
-	DataStore
 }
 
 // UpsertOptions are the options to use with the set operations
