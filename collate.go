@@ -112,7 +112,7 @@ func preCollate(value any) (result preCollated) {
 		result.tok = kString
 		result.val = value
 		if jnum, ok := value.(json.Number); ok {
-			//json.Number is actually a string, but can be parsed to a number
+			// json.Number is actually a string, but can be parsed to a number
 			if f, err := jnum.Float64(); err == nil {
 				result.tok = kNumber
 				result.val = f

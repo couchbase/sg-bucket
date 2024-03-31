@@ -15,7 +15,7 @@ import (
 	"fmt"
 )
 
-// Raw representation of a bucket document - document body and xattr as bytes, along with cas.
+// BucketDocument is a representation document body and xattr as bytes, along with cas.
 type BucketDocument struct {
 	Body   []byte
 	Xattrs map[string][]byte
@@ -23,7 +23,7 @@ type BucketDocument struct {
 	Expiry uint32 // Item expiration time (UNIX Epoch time)
 }
 
-// A bucket feature that can be tested for with BucketStoreFeatureIsSupported.IsSupported.
+// BucketStoreFeature can be tested for with BucketStoreFeatureIsSupported.IsSupported.
 type BucketStoreFeature int
 
 const (
@@ -39,7 +39,7 @@ const (
 	BucketStoreFeatureMultiXattrSubdocOperations
 )
 
-// An error type, used by TypedErrorStore.IsError
+// DataStoreErrorType can be tested with DataStore.IsError
 type DataStoreErrorType int
 
 const (
@@ -74,32 +74,29 @@ type DynamicDataStoreBucket interface {
 
 // MutationFeedStore is a DataStore that supports a DCP or TAP streaming mutation feed.
 type MutationFeedStore interface {
-	// The number of vbuckets of this store; usually 1024.
+	// GetMaxVbno returns the number of vBuckets of this store; usually 1024.
 	GetMaxVbno() (uint16, error)
 
-	// Starts a new DCP event feed. Events will be passed to the callback function.
-	// To close the feed, pass a channel in args.Terminator and close that channel.
-	// - args: Configures what events will be sent.
-	// - callback: The function to be called for each event.
-	// - dbStats: TODO: What does this do? Walrus ignores it.
+	// StartDCPFeed starts a new DCP event feed. Events will be passed to the callback function.
+	// To close the feed, pass a channel in args.Terminator and close that channel. The callback will be called for each event processed. dbStats are optional to provide metrics.
 	StartDCPFeed(ctx context.Context, args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
 }
 
-// A DataStore that can introspect the errors it returns.
+// TypedErrorStore can introspect the errors it returns.
 type TypedErrorStore interface {
 	IsError(err error, errorType DataStoreErrorType) bool
 }
 
-// Allows a BucketStore to be tested for support for various features.
+// BucketStoreFeatureIsSupported allows a BucketStore to be tested for support for various features.
 type BucketStoreFeatureIsSupported interface {
 	IsSupported(feature BucketStoreFeature) bool // IsSupported reports whether the bucket/datastore supports a given feature
 }
 
-// A DataStore is a basic key-value store with extended attributes and subdoc operations.
+// DataStore is a basic key-value store with extended attributes and subdoc operations.
 // A Couchbase Server collection within a bucket is an example of a DataStore.
 // The expiry field (exp) can take offsets or UNIX Epoch times.  See https://developer.couchbase.com/documentation/server/3.x/developer/dev-guide-3.0/doc-expiration.html
 type DataStore interface {
-	// The datastore name (usually a qualified collection name)
+	// GetName returns bucket.scope.collection
 	GetName() string
 
 	// An integer that uniquely identifies this Collection in its Bucket.
@@ -116,12 +113,12 @@ type DataStore interface {
 
 // UpsertOptions are the options to use with the set operations
 type UpsertOptions struct {
-	PreserveExpiry bool // GoCB v2 option
+	PreserveExpiry bool // PreserveExpiry will keep the existing expiry of an existing document if available
 }
 
 // MutateInOptions is a struct of options for mutate in operations, to be used by both sync gateway and rosmar
 type MutateInOptions struct {
-	PreserveExpiry bool // Used for imports - CBG-1563
+	PreserveExpiry bool // PreserveExpiry will keep the existing document expiry on modification
 	MacroExpansion []MacroExpansionSpec
 }
 
@@ -147,7 +144,7 @@ func (t MacroExpansionType) String() string {
 	return macroExpansionTypeStrings[t]
 }
 
-// UpsertSpec creates a upsert spec for macro expansion mutate in operations
+// NewMacroExpansionSpec creates a for spec for macro expansion operations
 func NewMacroExpansionSpec(specPath string, macro MacroExpansionType) MacroExpansionSpec {
 	return MacroExpansionSpec{
 		Path: specPath,
@@ -157,7 +154,7 @@ func NewMacroExpansionSpec(specPath string, macro MacroExpansionType) MacroExpan
 
 // A KVStore implements the basic key-value CRUD operations.
 type KVStore interface {
-	// Gets the value of a key and unmarshals it.
+	// Get retrives a document value of a key and unmarshals it.
 	// Parameters:
 	// - k: The key (document ID)
 	// - rv: The value, if any, is stored here. Must be a pointer.
@@ -169,7 +166,7 @@ type KVStore interface {
 	// - err: Error, if any. MissingError if the key does not exist.
 	Get(k string, rv interface{}) (cas uint64, err error)
 
-	// Gets the value of a key as a raw byte array.
+	// GetRaw returns value of a key as a raw byte array.
 	// Parameters:
 	// - k: The key (document ID)
 	// Return values:
@@ -178,14 +175,14 @@ type KVStore interface {
 	// - err: Error, if any. MissingError if the key does not exist.
 	GetRaw(k string) (rv []byte, cas uint64, err error)
 
-	// Like GetRaw, but also sets the document's expiration time.
+	// GetAndTouchRaw is like GetRaw, but also sets the document's expiration time.
 	// Since this changes the document, it generates a new CAS value and posts an event.
 	GetAndTouchRaw(k string, exp uint32) (rv []byte, cas uint64, err error)
 
-	// Equivalent to GetAndTouchRaw, but does not return the value.
+	// Touch is equivalent to GetAndTouchRaw, but does not return the value.
 	Touch(k string, exp uint32) (cas uint64, err error)
 
-	// Adds a document; similar to Set but gives up if the key exists with a non-nil value.
+	// Add creates a document; similar to Set but gives up if the key exists with a non-nil value.
 	// Parameters:
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp (0 for never)
@@ -195,7 +192,7 @@ type KVStore interface {
 	// - err: Error, if any. Does not return ErrKeyExists.
 	Add(k string, exp uint32, v interface{}) (added bool, err error)
 
-	// Adds a document; similar to SetRaw but gives up if the key exists with a non-nil value.
+	// AddRaw creates a document; similar to SetRaw but gives up if the key exists with a non-nil value.
 	// Parameters:
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp (0 for never)
@@ -205,7 +202,7 @@ type KVStore interface {
 	// - err: Error, if any. Does not return ErrKeyExists.
 	AddRaw(k string, exp uint32, v []byte) (added bool, err error)
 
-	// Sets the value of a document, creating it if it doesn't exist.
+	// Set upserts a a document, creating it if it doesn't exist.
 	// Parameters:
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp (0 for never)
@@ -215,7 +212,7 @@ type KVStore interface {
 	// - err: Error, if any
 	Set(k string, exp uint32, opts *UpsertOptions, v interface{}) error
 
-	// Sets the raw value of a document, creating it if it doesn't exist.
+	// Set upserts a document, creating it if it doesn't exist.
 	// Parameters:
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp (0 for never)
@@ -225,7 +222,7 @@ type KVStore interface {
 	// - err: Error, if any. Does not return ErrKeyExists
 	SetRaw(k string, exp uint32, opts *UpsertOptions, v []byte) error
 
-	// The most general write method. Sets the value of a document, creating it if it doesn't
+	// WriteCas is the most general write method. Sets the value of a document, creating it if it doesn't
 	// exist, but checks for CAS conflicts:
 	// If the document has a value, and its CAS differs from the input `cas` parameter, the method
 	// fails and returns a CasMismatchErr.
@@ -240,17 +237,17 @@ type KVStore interface {
 	// - err: Error, if any. May be CasMismatchErr
 	WriteCas(k string, exp uint32, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 
-	// Deletes a document by setting its value to nil, making it a tombstone.
+	// Delete removes a document by setting its value to nil, making it a tombstone.
 	// System xattrs are preserved but user xattrs are removed.
 	// Returns MissingError if the document doesn't exist or has no value.
 	Delete(k string) error
 
-	// Deletes a document if its CAS matches the given value.
+	// Remove a document if its CAS matches the given value.
 	// System xattrs are preserved but user xattrs are removed.
-	// Returns MissingError if the document doesn't exist or has no value.
+	// Returns MissingError if the document doesn't exist or has no value. Returns a CasMismatchErr if the CAS doesn't match.
 	Remove(k string, cas uint64) (casOut uint64, err error)
 
-	// Interactively updates a document. The document's current value (nil if none) is passed to
+	// Update interactively updates a document. The document's current value (nil if none) is passed to
 	// the callback, then the result of the callback is used to update the value.
 	//
 	// Warning: If the document's CAS changes between the read and the write, the method retries;
@@ -268,7 +265,7 @@ type KVStore interface {
 	// - err: Error, if any (including an error returned by the callback)
 	Update(k string, exp uint32, callback UpdateFunc) (casOut uint64, err error)
 
-	// Adds a number to a document serving as a counter.
+	// Incr adds a number to a document serving as a counter.
 	// The document's value must be an ASCII decimal integer.
 	// Parameters:
 	// - k: The key (document ID)
@@ -280,19 +277,19 @@ type KVStore interface {
 	// - err: Error, if any
 	Incr(k string, amt, def uint64, exp uint32) (casOut uint64, err error)
 
-	// Returns the document's current expiration timestamp.
+	// GetExpiry returns the document's current expiration timestamp.
 	GetExpiry(ctx context.Context, k string) (expiry uint32, err error)
 
-	// Tests whether a document exists.
+	// Exists tests whether a document exists.
 	// A tombstone with a nil value is still considered to exist.
 	Exists(k string) (exists bool, err error)
 }
 
-// Extension of KVStore that allows individual properties in a document to be accessed.
+// SubdocStore is an extension of KVStore that allows individual properties in a document to be accessed.
 // Documents accessed through this API must have values that are JSON objects.
 // Properties are specified by SQL++ paths that look like "foo.bar.baz" or "foo.bar[3].baz".
 type SubdocStore interface {
-	// Adds an individual JSON property to a document. The document must exist.
+	// SubdocInsert adds an individual JSON property to a document. The document must exist.
 	// If the property already exists, returns `ErrPathExists`.
 	// If the parent property doesn't exist, returns `ErrPathNotFound`.
 	// If a parent property has the wrong type, returns ErrPathMismatch.
@@ -303,7 +300,7 @@ type SubdocStore interface {
 	// - value: The value to set. Will be marshaled to JSON.
 	SubdocInsert(ctx context.Context, k string, subdocPath string, cas uint64, value interface{}) error
 
-	// Gets the raw JSON value of a document property.
+	// GetSubDocRaw returns the raw JSON value of a document property.
 	// If the property doesn't exist, returns ErrPathNotFound.
 	// If a parent property has the wrong type, returns ErrPathMismatch.
 	// Parameters:
@@ -315,7 +312,7 @@ type SubdocStore interface {
 	// - err: Error, if any.
 	GetSubDocRaw(ctx context.Context, k string, subdocPath string) (value []byte, casOut uint64, err error)
 
-	// Sets an individual JSON property in a document.
+	// WriteSubDoc sets an individual JSON property in a document.
 	// Creates the document if it didn't exist.
 	// If the parent property doesn't exist, returns `ErrPathNotFound`.
 	// If a parent property has the wrong type, returns ErrPathMismatch.
@@ -330,64 +327,50 @@ type SubdocStore interface {
 	WriteSubDoc(ctx context.Context, k string, subdocPath string, cas uint64, value []byte) (casOut uint64, err error)
 }
 
-// An XattrStore is a data store that supports extended attributes, i.e. document metadata.
+// XattrStore is a data store that supports extended attributes, i.e. document metadata.
 type XattrStore interface {
 
-	// Writes a document and updates an xattr value. Fails on a CAS mismatch.
+	// Writes a document and updates xattr values. Fails on a CAS mismatch.
 	// Parameters:
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp (0 for never)
 	// - cas: Expected CAS value
 	// - opts: Options; use PreserveExpiry to avoid setting expiry
 	// - value: The raw value to set, or nil to *leave unchanged*
-	// - xattrValues: The raw xattrs value to set, or nil to *delete*
+	// - xattrValues: Each key represents a raw xattr values to set, or nil to *delete*
 	WriteWithXattrs(ctx context.Context, k string, exp uint32, cas uint64, value []byte, xattrValue map[string][]byte, opts *MutateInOptions) (casOut uint64, err error)
 
 	// WriteTombstoneWithXattrs turns a document into a tombstone and updates its xattrs.  If deleteBody=true, will delete an existing body.
 	WriteTombstoneWithXattrs(ctx context.Context, k string, exp uint32, cas uint64, xattrValue map[string][]byte, deleteBody bool, opts *MutateInOptions) (casOut uint64, err error)
 
-	// Updates an xattr of a document.
+	// SetXattrs updates xattrs of a document.
 	// Parameters:
 	// - k: The key (document ID)
-	// - xattrKey: The name of the xattr to update
-	// - xattrValue: The raw xattr value to set, or nil to *delete*
+	// - xattrs: Each xattr value is stored as a key with the raw value to set or nil to delete.
 	SetXattrs(ctx context.Context, k string, xattrs map[string][]byte) (casOut uint64, err error)
 
-	// Removes an xattr. Fails on a CAS mismatch.
+	// RemoveXattrs removes xattrs by name. Fails on a CAS mismatch.
 	// - k: The key (document ID)
 	// - xattrKey: The name of the xattr to update
 	// - cas: Expected CAS value
 	RemoveXattrs(ctx context.Context, k string, xattrKeys []string, cas uint64) (err error)
 
-	// Removes any number of xattrs from a document.
-	// - k: The key (document ID)
-	// - xattrKeys: Any number of xattr keys
+	// DeleteSubDocPaths removes any SQL++ subdoc paths from a document.
 	DeleteSubDocPaths(ctx context.Context, k string, paths ...string) (err error)
 
-	// Gets the value of an xattr.
-	// - k: The key (document ID)
-	// - xattrKey: The name of the xattr to update
-	// - xv: The xattr value will be unmarshaled into this, if it exists
+	// GetXattrs returns the xattrs with the following keys. If the key is not present, it will not be present in the returned map.
 	GetXattrs(ctx context.Context, k string, xattrKeys []string) (xattrs map[string][]byte, casOut uint64, err error)
 
-	// Gets a document's value as well as an xattr and optionally a user xattr.
-	// (Note: A 'user xattr' is one whose key doesn't start with an underscore.)
-	// - k: The key (document ID)
-	// - xattrKeys: The name of the xattrs to get
-	// - rv: The value will be unmarshaled into this, if it exists
-	// - xv: The xattr values will be unmarshaled into this, if they exists
+	// GetWithXattrs returns a document's value as well as an xattrs.
 	GetWithXattrs(ctx context.Context, k string, xattrKeys []string) (v []byte, xv map[string][]byte, cas uint64, err error)
 
-	// Deletes a document's value and the value of an xattr.
-	// - k: The key (document ID)
-	// - xattrKeys: The name of the xattr to remove
+	// DeleteWithXattrs removes a document and its named xattrs.  User xattrs will always be deleted, but system xattrs must be manually removed when a document becomes a tombstone.
 	DeleteWithXattrs(ctx context.Context, k string, xattrKeys []string) error
 
-	// Interactive update of a document with MVCC.
-	// See the documentation of WriteUpdateWithXattrFunc for details.
+	// WriteUpdateWithXattrs preforms an interactive update of a document with MVCC.
+	// See the documentation of WriteUpdateWithXattrsFunc for details.
 	// - k: The key (document ID)
-	// - xattrKey: The name of the xattr to update
-	// - userXattrKey: The name of the user xattr to update, or "" for none
+	// - xattrs: The name of the xattrs to view or update.
 	// - exp: Expiration timestamp (0 for never)
 	// - cas: Expected CAS value
 	// - opts: Options; use PreserveExpiry to avoid setting expiry
@@ -395,24 +378,24 @@ type XattrStore interface {
 	// - callback: The callback that mutates the document
 	WriteUpdateWithXattrs(ctx context.Context, k string, xattrs []string, exp uint32, previous *BucketDocument, opts *MutateInOptions, callback WriteUpdateWithXattrsFunc) (casOut uint64, err error)
 
-	// Updates a document's xattr.
+	// UpdateXattrs will update the xattrs for a document. Use MutateInOptions to preserve the expiry value of a document. This operation returns an error on a CAS mismatch.
 	UpdateXattrs(ctx context.Context, k string, exp uint32, cas uint64, xv map[string][]byte, opts *MutateInOptions) (casOut uint64, err error)
 }
 
-// A DeletableStore is a data store that supports deletion of the underlying persistent storage.
+// DeletableStore is a data store that supports deletion of the underlying persistent storage.
 type DeleteableStore interface {
-	// Closes the store and removes its persistent storage.
+	// CloseAndDelete closes the store and removes its persistent storage.
 	CloseAndDelete(ctx context.Context) error
 }
 
 type DeletableBucket = DeleteableStore
 
-// A FlushableStore is a data store that supports flush.
+// FlushableStore is a data store that supports flush.
 type FlushableStore interface {
 	Flush() error
 }
 
-// A set of option flags for the Write method.
+// WriteOptions are option flags for the Write method.
 type WriteOptions int
 
 const (
@@ -423,7 +406,7 @@ const (
 	Append                              // Appends to value instead of replacing it
 )
 
-// Type of error returned by Bucket API when a document is missing
+// MissingError is returned by Bucket API when a document is missing
 type MissingError struct {
 	Key string // The document's ID
 }
@@ -432,7 +415,7 @@ func (err MissingError) Error() string {
 	return fmt.Sprintf("key %q missing", err.Key)
 }
 
-// Type of error returned by Bucket API when an Xattr is missing
+// XattrMissingError is returned by Bucket API when an Xattr is missing
 type XattrMissingError struct {
 	Key    string   // The document ID
 	Xattrs []string // missing xattrs
@@ -442,26 +425,26 @@ func (err XattrMissingError) Error() string {
 	return fmt.Sprintf("key %q's xattr %q missing", err.Key, err.Xattrs)
 }
 
-// Error returned from Write with AddOnly flag, when key already exists in the bucket.
+// ErrKeyExists is returned from Write with AddOnly flag, when key already exists in the bucket.
 // (This is *not* returned from the Add method! Add has an extra boolean parameter to
 // indicate this state, so it returns (false,nil).)
 var ErrKeyExists = errors.New("Key exists")
 
-// Error returned from Write with Perist or Indexable flags, if the value doesn't become
+// ErrTimeout returned from Write with Perist or Indexable flags, if the value doesn't become
 // persistent or indexable within the timeout period.
 var ErrTimeout = errors.New("Timeout")
 
-// Returning this from an update callback causes the function to re-fetch the doc and try again.
+// ErrCasFailureShouldRetry is returned from an update callback causes the function to re-fetch the doc and try again.
 var ErrCasFailureShouldRetry = errors.New("CAS failure should retry")
 
-// Error returned when trying to store a document value larger than the limit (usually 20MB.)
+// DocTooBigErr is returned when trying to store a document value larger than the limit (usually 20MB.)
 type DocTooBigErr struct{}
 
 func (err DocTooBigErr) Error() string {
 	return "document value too large"
 }
 
-// Error returned when the input CAS does not match the document's current CAS.
+// CasMismatchErr is returned when the input CAS does not match the document's current CAS.
 type CasMismatchErr struct {
 	Expected, Actual uint64
 }
@@ -470,11 +453,16 @@ func (err CasMismatchErr) Error() string {
 	return fmt.Sprintf("cas mismatch: expected %x, really %x", err.Expected, err.Actual)
 }
 
+// ErrPathNotFound is returned by subdoc operations when the path is not found.
 var ErrPathNotFound = errors.New("subdocument path not found in document")
+
+// ErrPathExists is returned by subdoc operations when the path already exists, and is expected to not exist.
 var ErrPathExists = errors.New("subdocument path already exists in document")
+
+// ErrPathMismatch is returned by subdoc operations when the path exists but has the wrong type.
 var ErrPathMismatch = errors.New("type mismatch in subdocument path")
 
-// Callback passed to KVStore.Update.
+// UpdateFunc is a callback passed to KVStore.Update.
 // Parameters:
 // - current: The document's current raw value. nil if it's a tombstone or doesn't exist.
 // Results:
@@ -484,27 +472,22 @@ var ErrPathMismatch = errors.New("type mismatch in subdocument path")
 // - err: Returning an error aborts the update.
 type UpdateFunc func(current []byte) (updated []byte, expiry *uint32, delete bool, err error)
 
+// UpdatedDoc is returned by WriteUpdateWithXattrsFunc, to indicate the new document value and xattrs.
 type UpdatedDoc struct {
-	Doc         []byte
-	Xattrs      map[string][]byte
-	IsTombstone bool
-	Expiry      *uint32
-	Spec        []MacroExpansionSpec
+	Doc         []byte               // Raw value of the document
+	Xattrs      map[string][]byte    // Each xattr found with its value. If the xattr is not specified by Update or not present in the document, it will be missing from the document
+	IsTombstone bool                 // IsTombstone is true if the document is a tombstone
+	Expiry      *uint32              // Expiry is non-nil to set an expiry
+	Spec        []MacroExpansionSpec // Spec represents which macros to expand
 }
 
-// Callback used by XattrStore.WriteUpdateWithXattr, used to transform the doc in preparation for update.
+// WriteUpdateWithXattrsFunc is used by XattrStore.WriteUpdateWithXattrs, used to transform the doc in preparation for update.
 // Parameters:
 // - doc: Current document raw value
-// - xattr: Current value of requested xattr
+// - xattrs: Current values of xattrs specified in WriteUpdateWithXattrs
 // - userXattr: Current value of requested user xattr (if any)
 // - cas: Document's current CAS
 // Return values:
-// - updatedDoc: New value to store (or nil to leave unchanged)
-// - updatedXattr: New xattr value to store (or nil to leave unchanged)
-// - deleteDoc: If true, document should be deleted
-// - expiry: If non-nil, points to a new expiry timestamp
-// - updatedSpec: Updated mutate in spec based off logic performed on the document inside callback
+// - UpdatedDoc: New value to store (or nil to leave unchanged)
 // - err: If non-nil, cancels update.
 type WriteUpdateWithXattrsFunc func(doc []byte, xattrs map[string][]byte, cas uint64) (UpdatedDoc, error)
-
-type WriteUpdateWithXattrFunc func(doc []byte, xattr, userXattr []byte, cas uint64) (updatedDoc []byte, updatedXattr []byte, deleteDoc bool, expiry *uint32, updatedSpec []MacroExpansionSpec, err error)

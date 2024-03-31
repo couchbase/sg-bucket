@@ -56,9 +56,7 @@ func newJsMapTask(funcSource string, timeout time.Duration) (JSServerTask, error
 	return mapper, nil
 }
 
-//////// JSMapFunction
-
-// A thread-safe wrapper around a jsMapTask, i.e. a Couchbase-Server-compatible JavaScript
+// JSMapFunction is a thread-safe wrapper around a jsMapTask, i.e. a Couchbase-Server-compatible JavaScript
 // 'map' function.
 type JSMapFunction struct {
 	*JSServer
@@ -81,7 +79,7 @@ func NewJSMapFunction(ctx context.Context, fnSource string, timeout time.Duratio
 	}
 }
 
-// Calls a jsMapTask.
+// CallFunction calls a jsMapTask.
 func (mapper *JSMapFunction) CallFunction(ctx context.Context, input *JSMapFunctionInput) ([]*ViewRow, error) {
 	result1, err := mapper.Call(ctx, JSONString(input.Doc), MakeMeta(input))
 	if err != nil {
@@ -94,7 +92,7 @@ func (mapper *JSMapFunction) CallFunction(ctx context.Context, input *JSMapFunct
 	return rows, nil
 }
 
-// Returns a Couchbase-compatible 'meta' object, given a document ID
+// MakeMeta returns a Couchbase-compatible 'meta' object, given a document ID
 func MakeMeta(input *JSMapFunctionInput) map[string]interface{} {
 	meta := map[string]interface{}{
 		"id":  input.DocID,
@@ -107,7 +105,7 @@ func MakeMeta(input *JSMapFunctionInput) map[string]interface{} {
 			var value any
 			err := json.Unmarshal(data, &value)
 			if err != nil {
-				panic("Can't unmarshal xattrs") //TEMP
+				panic("Can't unmarshal xattrs")
 			}
 			xattrs[key] = value
 		}

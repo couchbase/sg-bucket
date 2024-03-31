@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// Feed operation type (found in FeedEvent)
+// FeedOpCode represents operation type (found in FeedEvent)
 type FeedOpcode uint8
 
 const (
@@ -43,6 +43,7 @@ func (o FeedOpcode) String() string {
 	}
 }
 
+// FeedDataType represents the type of data in a FeedEvent
 type FeedDataType = uint8
 
 const FeedDataTypeRaw FeedDataType = 0 // raw (binary) document
@@ -52,7 +53,7 @@ const (
 	FeedDataTypeXattr                           // Document has Xattrs
 )
 
-// A notification of a change in a data store.
+// FeedEvent is a notification of a change in a data store.
 type FeedEvent struct {
 	Opcode       FeedOpcode   // Type of event
 	Flags        uint32       // Item flags
@@ -74,7 +75,7 @@ type MutationFeed interface {
 	Close() error                  // Close the tap feed
 }
 
-// Parameters for requesting a feed.
+// FeedArguments are options for starting a MutationFeed
 type FeedArguments struct {
 	ID               string              // Feed ID, used to build unique identifier for DCP feed
 	Backfill         uint64              // Timestamp of oldest item to send. Use FeedNoBackfill to suppress all past items.
@@ -105,7 +106,7 @@ type Xattr struct {
 	Value []byte
 }
 
-// Encodes a document value and Xattrs into DCP data format.
+// EncodeValueWithXattrs encodes a document value and Xattrs into DCP data format.
 // Set the FeedDataTypeXattr flag if you store a value of this format.
 func EncodeValueWithXattrs(body []byte, xattrs ...Xattr) []byte {
 	/* Details on DCP data format taken from https://docs.google.com/document/d/18UVa5j8KyufnLLy29VObbWRtoBn9vs8pcxttuMt6rz8/edit#heading=h.caqiui1pmmmb. :
@@ -144,7 +145,7 @@ func EncodeValueWithXattrs(body []byte, xattrs ...Xattr) []byte {
 	return out.Bytes()
 }
 
-// Decodes DCP Xattrs value format into a body and zero or more Xattrs.
+// DecodeValueWithXattrs converts DCP Xattrs value format into a body and zero or more Xattrs.
 // Call this if the event DataType has the FeedDataTypeXattr flag.
 func DecodeValueWithXattrs(data []byte) (body []byte, xattrs []Xattr, err error) {
 	if len(data) < 4 {
