@@ -72,14 +72,6 @@ type DynamicDataStoreBucket interface {
 	DropDataStore(DataStoreName) error                    // DropDataStore drops a DataStore from the bucket
 }
 
-// A type of feed, either TCP or the older TAP
-type FeedType string
-
-const (
-	DcpFeedType FeedType = "dcp"
-	TapFeedType FeedType = "tap"
-)
-
 // MutationFeedStore is a DataStore that supports a DCP or TAP streaming mutation feed.
 type MutationFeedStore interface {
 	// The number of vbuckets of this store; usually 1024.
@@ -91,19 +83,6 @@ type MutationFeedStore interface {
 	// - callback: The function to be called for each event.
 	// - dbStats: TODO: What does this do? Walrus ignores it.
 	StartDCPFeed(ctx context.Context, args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
-
-	// Starts a new TAP event feed. Events can be read from the returned MutationFeed's
-	// Events channel. The feed is closed by calling the MutationFeed's Close function.
-	// - args: Configures what events will be sent.
-	// - dbStats: TODO: What does this do? Walrus ignores it.
-	StartTapFeed(args FeedArguments, dbStats *expvar.Map) (MutationFeed, error)
-}
-
-// An extension of MutationFeedStore.
-type MutationFeedStore2 interface {
-	MutationFeedStore
-	// The type of feed supported by this data store.
-	GetFeedType() FeedType
 }
 
 // A DataStore that can introspect the errors it returns.
