@@ -66,7 +66,7 @@ type FeedEvent struct {
 	TimeReceived time.Time    // Used for latency calculations
 }
 
-// A Tap feed. Events from the bucket can be read from the channel returned by Events().
+// MutationFeed shows events from the bucket can be read from the channel returned by Events().
 // Remember to call Close() on it when you're done, unless its channel has closed itself already.
 type MutationFeed interface {
 	Events() <-chan FeedEvent      // Read only channel to read TapEvents
