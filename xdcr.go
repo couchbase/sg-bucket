@@ -18,6 +18,9 @@ type XDCRStats struct {
 	DocsWritten uint64
 	// ErrorCount is the number of errors that have occurred during the replication.
 	ErrorCount uint64
+
+	// TargetNewerDocs is the number of documents that were newer on the target cluster than the source cluster.
+	TargetNewerDocs uint64
 }
 
 // XDCR represents a bucket to bucket XDCR replication.

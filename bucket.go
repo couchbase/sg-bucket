@@ -122,8 +122,6 @@ type BucketStoreFeatureIsSupported interface {
 type DataStore interface {
 	// The datastore name (usually a qualified collection name, bucket.scope.collection)
 	GetName() string
-	// The name of the datastore, without the bucket name
-	DataStoreName() DataStoreName
 
 	// An integer that uniquely identifies this Collection in its Bucket.
 	// The default collection always has the ID zero.
@@ -133,6 +131,7 @@ type DataStore interface {
 	SubdocStore
 	TypedErrorStore
 	BucketStoreFeatureIsSupported
+	DataStoreName
 }
 
 // UpsertOptions are the options to use with the set operations
