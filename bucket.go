@@ -144,7 +144,6 @@ func (t MacroExpansionType) String() string {
 	return macroExpansionTypeStrings[t]
 }
 
-// NewMacroExpansionSpec creates a for spec for macro expansion operations
 func NewMacroExpansionSpec(specPath string, macro MacroExpansionType) MacroExpansionSpec {
 	return MacroExpansionSpec{
 		Path: specPath,
