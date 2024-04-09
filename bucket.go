@@ -15,7 +15,7 @@ import (
 	"fmt"
 )
 
-// BucketDocument is a representation document body and xattr as bytes, along with cas.
+// BucketDocument is a raw representation of a document, body and xattrs as bytes, along with cas.
 type BucketDocument struct {
 	Body   []byte
 	Xattrs map[string][]byte
