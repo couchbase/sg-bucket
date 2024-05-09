@@ -13,6 +13,7 @@ package sgbucket
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -100,6 +101,12 @@ const FeedResume = 1
 // checkpoint persistence (used to avoid recursive checkpoint document processing)
 type FeedEventCallbackFunc func(event FeedEvent) bool
 
+// ErrXattrInvalidLen is returned if the xattr is corrupt.
+var ErrXattrInvalidLen = errors.New("Xattr stream length")
+
+// ErrEmptyMetadata is returned when there is no Sync Gateway metadata
+var ErrEmptyMetadata = errors.New("Empty Sync Gateway metadata")
+
 // The name and value of an extended attribute (xattr)
 type Xattr struct {
 	Name  string
@@ -147,24 +154,47 @@ func EncodeValueWithXattrs(body []byte, xattrs ...Xattr) []byte {
 
 // DecodeValueWithXattrs converts DCP Xattrs value format into a body and zero or more Xattrs.
 // Call this if the event DataType has the FeedDataTypeXattr flag.
-func DecodeValueWithXattrs(data []byte) (body []byte, xattrs []Xattr, err error) {
+// Details on format (taken from https://docs.google.com/document/d/18UVa5j8KyufnLLy29VObbWRtoBn9vs8pcxttuMt6rz8/edit#heading=h.caqiui1pmmmb.):
+/*
+	When the XATTR bit is set the first uint32_t in the body contains the size of the entire XATTR section.
+
+
+	      Byte/     0       |       1       |       2       |       3       |
+	         /              |               |               |               |
+	        |0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|
+	        +---------------+---------------+---------------+---------------+
+	       0| Total xattr length in network byte order                      |
+	        +---------------+---------------+---------------+---------------+
+
+	Following the length you'll find an iovector-style encoding of all of the XATTR key-value pairs with the following encoding:
+
+	uint32_t length of next xattr pair (network order)
+	xattr key in modified UTF-8
+	0x00
+	xattr value in modified UTF-8
+	0x00
+
+	The 0x00 byte after the key saves us from storing a key length, and the trailing 0x00 is just for convenience to allow us to use string functions to search in them.
+*/
+
+func DecodeValueWithXattrs(data []byte) ([]byte, []Xattr, error) {
 	if len(data) < 4 {
-		err = fmt.Errorf("invalid DCP xattr data: truncated (%d bytes)", len(data))
-		return
+		return nil, nil, fmt.Errorf("invalid DCP xattr data: %w truncated (%d bytes)", ErrEmptyMetadata, len(data))
 	}
 
 	xattrsLen := binary.BigEndian.Uint32(data[0:4])
 	if int(xattrsLen)+4 > len(data) {
-		err = fmt.Errorf("invalid DCP xattr data: invalid xattrs length %d (data is only %d bytes)", xattrsLen, len(data))
+		return nil, nil, fmt.Errorf("invalid DCP xattr data: %w length %d (data is only %d bytes)", ErrXattrInvalidLen, xattrsLen, len(data))
 	}
-	body = data[xattrsLen+4:]
+	body := data[xattrsLen+4:]
 	if xattrsLen == 0 {
-		return
+		return body, nil, nil
 	}
 
 	// In the xattr key/value pairs, key and value are both terminated by 0x00 (byte(0)).  Use this as a separator to split the byte slice
 	separator := []byte("\x00")
 
+	xattrs := make([]Xattr, 0)
 	// Iterate over xattr key/value pairs
 	pos := uint32(4)
 	for pos < xattrsLen {
@@ -176,11 +206,11 @@ func DecodeValueWithXattrs(data []byte) (body []byte, xattrs []Xattr, err error)
 		pairBytes := data[pos : pos+pairLen]
 		components := bytes.Split(pairBytes, separator)
 		// xattr pair has the format [key]0x00[value]0x00, and so should split into three components
-		if len(components) != 3 || len(components[2]) != 0 {
-			return nil, nil, fmt.Errorf("invalid DCP xattr data: %s", pairBytes)
+		if len(components) != 3 {
+			return nil, nil, fmt.Errorf("Unexpected number of components found in xattr pair: %s", pairBytes)
 		}
 		xattrs = append(xattrs, Xattr{string(components[0]), components[1]})
 		pos += pairLen
 	}
-	return
+	return body, xattrs, nil
 }
