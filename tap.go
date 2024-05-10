@@ -227,6 +227,7 @@ func decodeValueWithXattrs(data []byte, xattrNames []string, allXattrs bool) (bo
 		for _, xattrName := range xattrNames {
 			if xattrName == xattrKey {
 				xattrs[xattrName] = components[1]
+				break
 			}
 		}
 		// Exit if we have all xattrs we want
