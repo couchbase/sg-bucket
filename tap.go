@@ -154,8 +154,18 @@ func EncodeValueWithXattrs(body []byte, xattrs ...Xattr) []byte {
 	return out.Bytes()
 }
 
-// DecodeValueWithXattrs converts DCP Xattrs value format into a body and zero or more Xattrs.
-// Call this if the event DataType has the FeedDataTypeXattr flag.
+// DecodeValueWithXattrs converts DCP Xattrs value format into a body and zero or more Xattrs. Only the xattrs passed into the function will be decoded.
+func DecodeValueWithXattrs(xattrNames []string, data []byte) (body []byte, xattrs map[string][]byte, err error) {
+	return decodeValueWithXattrs(data, xattrNames, false)
+}
+
+// DecodeValueWithXattrs converts DCP Xattrs value format into a body and xattrs. All xattrs found will be returned.
+func DecodeValueWithAllXattrs(data []byte) (body []byte, xattrs map[string][]byte, err error) {
+	return decodeValueWithXattrs(data, nil, true)
+}
+
+// decodeValueWithXattrs will turn DCP byte stream into xattrs and a body. It is safe to call if the DCP event DataType has the FeedDataTypeXattr flag.
+
 // Details on format (taken from https://docs.google.com/document/d/18UVa5j8KyufnLLy29VObbWRtoBn9vs8pcxttuMt6rz8/edit#heading=h.caqiui1pmmmb.):
 /*
 	When the XATTR bit is set the first uint32_t in the body contains the size of the entire XATTR section.
@@ -178,8 +188,10 @@ func EncodeValueWithXattrs(body []byte, xattrs ...Xattr) []byte {
 
 	The 0x00 byte after the key saves us from storing a key length, and the trailing 0x00 is just for convenience to allow us to use string functions to search in them.
 */
-
-func DecodeValueWithXattrs(data []byte) ([]byte, []Xattr, error) {
+func decodeValueWithXattrs(data []byte, xattrNames []string, allXattrs bool) (body []byte, xattrs map[string][]byte, err error) {
+	if allXattrs && len(xattrNames) > 0 {
+		return nil, nil, fmt.Errorf("can not specify specific xattrs and allXattrs simultaneously")
+	}
 	if len(data) < 4 {
 		return nil, nil, fmt.Errorf("invalid DCP xattr data: %w truncated (%d bytes)", ErrEmptyMetadata, len(data))
 	}
@@ -188,7 +200,7 @@ func DecodeValueWithXattrs(data []byte) ([]byte, []Xattr, error) {
 	if int(xattrsLen)+4 > len(data) {
 		return nil, nil, fmt.Errorf("invalid DCP xattr data: %w length %d (data is only %d bytes)", ErrXattrInvalidLen, xattrsLen, len(data))
 	}
-	body := data[xattrsLen+4:]
+	body = data[xattrsLen+4:]
 	if xattrsLen == 0 {
 		return body, nil, nil
 	}
@@ -196,7 +208,7 @@ func DecodeValueWithXattrs(data []byte) ([]byte, []Xattr, error) {
 	// In the xattr key/value pairs, key and value are both terminated by 0x00 (byte(0)).  Use this as a separator to split the byte slice
 	separator := []byte("\x00")
 
-	xattrs := make([]Xattr, 0)
+	xattrs = make(map[string][]byte, len(xattrNames))
 	// Iterate over xattr key/value pairs
 	pos := uint32(4)
 	for pos < xattrsLen {
@@ -211,7 +223,16 @@ func DecodeValueWithXattrs(data []byte) ([]byte, []Xattr, error) {
 		if len(components) != 3 {
 			return nil, nil, fmt.Errorf("Unexpected number of components found in xattr pair: %s", pairBytes)
 		}
-		xattrs = append(xattrs, Xattr{string(components[0]), components[1]})
+		xattrKey := string(components[0])
+		for _, xattrName := range xattrNames {
+			if xattrName == xattrKey {
+				xattrs[xattrName] = components[1]
+			}
+		}
+		// Exit if we have all xattrs we want
+		if !allXattrs && len(xattrs) == len(xattrNames) {
+			return body, xattrs, nil
+		}
 		pos += pairLen
 	}
 	return body, xattrs, nil
