@@ -56,16 +56,18 @@ const (
 
 // FeedEvent is a notification of a change in a data store.
 type FeedEvent struct {
-	Opcode       FeedOpcode   // Type of event
+	TimeReceived time.Time    // Used for latency calculations
+	Key          []byte       // Item key
+	Value        []byte       // Item value
+	Cas          uint64       // Cas of document
+	RevNo        uint64       // Server revision number of document
 	Flags        uint32       // Item flags
 	Expiry       uint32       // Item expiration time (UNIX Epoch time)
-	Key, Value   []byte       // Item key/value
 	CollectionID uint32       // ID of the item's collection - 0x0 for the default collection
-	VbNo         uint16       // Vbucket of document
+	VbNo         uint16       // Vbucket of the document
+	Opcode       FeedOpcode   // Type of event
 	DataType     FeedDataType // Datatype of document
-	Cas          uint64       // Cas of document
 	Synchronous  bool         // When true, requires that event is processed synchronously
-	TimeReceived time.Time    // Used for latency calculations
 }
 
 // MutationFeed shows events from the bucket can be read from the channel returned by Events().
