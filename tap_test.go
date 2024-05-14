@@ -52,6 +52,24 @@ func TestDCPEncodeXattrs(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, test.body, gotBody)
 			requireXattrsEqual(t, test.xattrs, gotXattrs)
+
+			// Verify name-only retrieval
+			decodedXattrNames, err := DecodeXattrNames(value, false)
+			require.NoError(t, err)
+			if test.xattrs == nil {
+				require.Len(t, decodedXattrNames, 0)
+			} else {
+				require.Equal(t, decodedXattrNames, xattrNames)
+			}
+
+			// Verify name-only retrieval, system-only
+			decodedSystemXattrNames, err := DecodeXattrNames(value, true)
+			require.NoError(t, err)
+			if test.xattrs == nil {
+				require.Len(t, decodedSystemXattrNames, 0)
+			} else {
+				require.Equal(t, decodedSystemXattrNames, []string{"_sync"})
+			}
 		})
 	}
 }

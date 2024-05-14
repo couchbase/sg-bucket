@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -237,4 +238,48 @@ func decodeValueWithXattrs(data []byte, xattrNames []string, allXattrs bool) (bo
 		pos += pairLen
 	}
 	return body, xattrs, nil
+}
+
+// DecodeXattrNames extracts only the xattr names from a DCP value.  When systemOnly is true, only
+// returns system xattrs
+func DecodeXattrNames(data []byte, systemOnly bool) (xattrKeys []string, err error) {
+
+	if len(data) < 4 {
+		return nil, nil
+	}
+
+	xattrsLen := binary.BigEndian.Uint32(data[0:4])
+	if int(xattrsLen)+4 > len(data) {
+		return nil, nil
+	}
+
+	if xattrsLen == 0 {
+		return nil, nil
+	}
+
+	// In the xattr key/value pairs, key and value are both terminated by 0x00 (byte(0)).  Use this as a separator to split the byte slice
+	separator := []byte("\x00")
+
+	// Iterate over xattr key/value pairs
+	xattrKeys = make([]string, 0)
+	pos := uint32(4)
+	for pos < xattrsLen {
+		pairLen := binary.BigEndian.Uint32(data[pos : pos+4])
+		if pairLen == 0 || int(pos+pairLen) > len(data) {
+			return nil, fmt.Errorf("invalid DCP xattr data: unexpected xattr pair length (%d)", pairLen)
+		}
+		pos += 4
+		pairBytes := data[pos : pos+pairLen]
+		components := bytes.Split(pairBytes, separator)
+		// xattr pair has the format [key]0x00[value]0x00, and so should split into three components
+		if len(components) != 3 {
+			return nil, fmt.Errorf("Unexpected number of components found in xattr pair: %s", pairBytes)
+		}
+		xattrName := string(components[0])
+		if !systemOnly || strings.HasPrefix(xattrName, "_") {
+			xattrKeys = append(xattrKeys, xattrName)
+		}
+		pos += pairLen
+	}
+	return xattrKeys, nil
 }
