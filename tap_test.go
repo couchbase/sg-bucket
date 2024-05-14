@@ -17,35 +17,42 @@ import (
 )
 
 func TestDCPEncodeXattrs(t *testing.T) {
-	body := []byte(`{"name":"the document body"}`)
-	xattrs := []Xattr{
+	allXattrs := []Xattr{
 		{Name: "_sync", Value: []byte(`{"rev":1234}`)},
 		{Name: "swim", Value: []byte(`{"stroke":"dolphin"}`)},
 		{Name: "empty", Value: []byte(``)},
 	}
 
-	value := EncodeValueWithXattrs(body, xattrs...)
-	gotBody, gotXattrs, err := DecodeValueWithXattrs(value)
-	if assert.NoError(t, err) {
-		assert.Equal(t, body, gotBody)
-		assert.Equal(t, xattrs, gotXattrs)
+	xattrNames := []string{"_sync", "swim", "empty"}
+	tests := []struct {
+		name   string
+		body   []byte
+		xattrs []Xattr
+	}{
+		{
+			name:   "normal body",
+			body:   []byte(`{"name":"the document body"}`),
+			xattrs: allXattrs,
+		},
+		{
+			name:   "empty body",
+			body:   []byte{},
+			xattrs: allXattrs,
+		},
+		{
+			name:   "no xattrs",
+			body:   []byte(`{"name":"the document body"}`),
+			xattrs: nil,
+		},
 	}
-
-	// Try an empty body:
-	emptyBody := []byte{}
-	value = EncodeValueWithXattrs(emptyBody, xattrs...)
-	gotBody, gotXattrs, err = DecodeValueWithXattrs(value)
-	if assert.NoError(t, err) {
-		assert.Equal(t, emptyBody, gotBody)
-		assert.Equal(t, xattrs, gotXattrs)
-	}
-
-	// Try zero xattrs:
-	value = EncodeValueWithXattrs(body)
-	gotBody, gotXattrs, err = DecodeValueWithXattrs(value)
-	if assert.NoError(t, err) {
-		assert.Equal(t, body, gotBody)
-		assert.Equal(t, 0, len(gotXattrs))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			value := EncodeValueWithXattrs(test.body, test.xattrs...)
+			gotBody, gotXattrs, err := DecodeValueWithXattrs(xattrNames, value)
+			require.NoError(t, err)
+			assert.Equal(t, test.body, gotBody)
+			requireXattrsEqual(t, test.xattrs, gotXattrs)
+		})
 	}
 }
 
@@ -82,13 +89,12 @@ func TestDCPDecodeValue(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			// DecodeValueWithXattrs is the underlying function
-			body, xattrs, err := DecodeValueWithXattrs(test.body)
+			body, xattrs, err := DecodeValueWithXattrs([]string{"_sync"}, test.body)
 			require.ErrorIs(t, err, test.expectedErr)
 			require.Equal(t, test.expectedBody, body)
 			if test.expectedSyncXattr != nil {
 				require.Len(t, xattrs, 1)
-				require.Equal(t, "_sync", xattrs[0].Name)
-				require.Equal(t, test.expectedSyncXattr, xattrs[0].Value)
+				require.Equal(t, test.expectedSyncXattr, xattrs["_sync"])
 			} else {
 				require.Nil(t, xattrs)
 			}
@@ -101,7 +107,8 @@ func TestInvalidXattrStreamEmptyBody(t *testing.T) {
 	inputStream := []byte{0x00, 0x00, 0x00, 0x01, 0x01}
 	emptyBody := []byte{}
 
-	body, xattrs, err := DecodeValueWithXattrs(inputStream)
+	var xattrNames []string
+	body, xattrs, err := DecodeValueWithXattrs(xattrNames, inputStream)
 	require.NoError(t, err)
 	require.Empty(t, xattrs)
 	require.Equal(t, emptyBody, body)
@@ -126,4 +133,17 @@ func getSingleXattrDCPBytes() []byte {
 	dcpBody = append(dcpBody, zeroByte)
 	dcpBody = append(dcpBody, body...)
 	return dcpBody
+}
+
+func requireXattrsEqual(t *testing.T, expected []Xattr, actual map[string][]byte) {
+	require.Len(t, actual, len(expected), "expected xattrs %+v to match actual length xattrs %+v", expected, actual)
+	for _, expectedXattr := range expected {
+		actualValue, ok := actual[expectedXattr.Name]
+		require.True(t, ok, "expected xattr key %s not found in actual xattrs %+v", expectedXattr.Name, actual)
+		if string(expectedXattr.Value) == "" {
+			require.Equal(t, string(expectedXattr.Value), string(actualValue))
+		} else {
+			require.JSONEq(t, string(expectedXattr.Value), string(actualValue))
+		}
+	}
 }
