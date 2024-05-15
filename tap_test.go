@@ -53,6 +53,11 @@ func TestDCPEncodeXattrs(t *testing.T) {
 			assert.Equal(t, test.body, gotBody)
 			requireXattrsEqual(t, test.xattrs, gotXattrs)
 
+			gotBody, gotXattrs, err = DecodeValueWithAllXattrs(value)
+			require.NoError(t, err)
+			require.Equal(t, test.body, gotBody)
+			requireXattrsEqual(t, test.xattrs, gotXattrs)
+
 			// Verify name-only retrieval
 			decodedXattrNames, err := DecodeXattrNames(value, false)
 			require.NoError(t, err)

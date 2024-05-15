@@ -225,15 +225,19 @@ func decodeValueWithXattrs(data []byte, xattrNames []string, allXattrs bool) (bo
 			return nil, nil, fmt.Errorf("Unexpected number of components found in xattr pair: %s", pairBytes)
 		}
 		xattrKey := string(components[0])
-		for _, xattrName := range xattrNames {
-			if xattrName == xattrKey {
-				xattrs[xattrName] = components[1]
-				break
+		if allXattrs {
+			xattrs[xattrKey] = components[1]
+		} else {
+			for _, xattrName := range xattrNames {
+				if xattrName == xattrKey {
+					xattrs[xattrName] = components[1]
+					break
+				}
 			}
-		}
-		// Exit if we have all xattrs we want
-		if !allXattrs && len(xattrs) == len(xattrNames) {
-			return body, xattrs, nil
+			// Exit if we have all xattrs we want
+			if !allXattrs && len(xattrs) == len(xattrNames) {
+				return body, xattrs, nil
+			}
 		}
 		pos += pairLen
 	}
