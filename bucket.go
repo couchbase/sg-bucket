@@ -39,13 +39,6 @@ const (
 	BucketStoreFeatureMultiXattrSubdocOperations
 )
 
-// DataStoreErrorType can be tested with DataStore.IsError
-type DataStoreErrorType int
-
-const (
-	KeyNotFoundError = DataStoreErrorType(iota)
-)
-
 // BucketStore is a basic interface that describes a bucket - with one or many underlying DataStore.
 type BucketStore interface {
 	GetName() string       // The bucket's name
@@ -62,7 +55,6 @@ type BucketStore interface {
 	NamedDataStore(DataStoreName) (DataStore, error)
 
 	MutationFeedStore
-	TypedErrorStore
 	BucketStoreFeatureIsSupported
 }
 
@@ -80,11 +72,6 @@ type MutationFeedStore interface {
 	// StartDCPFeed starts a new DCP event feed. Events will be passed to the callback function.
 	// To close the feed, pass a channel in args.Terminator and close that channel. The callback will be called for each event processed. dbStats are optional to provide metrics.
 	StartDCPFeed(ctx context.Context, args FeedArguments, callback FeedEventCallbackFunc, dbStats *expvar.Map) error
-}
-
-// TypedErrorStore can introspect the errors it returns.
-type TypedErrorStore interface {
-	IsError(err error, errorType DataStoreErrorType) bool
 }
 
 // BucketStoreFeatureIsSupported allows a BucketStore to be tested for support for various features.
@@ -106,7 +93,6 @@ type DataStore interface {
 	KVStore
 	XattrStore
 	SubdocStore
-	TypedErrorStore
 	BucketStoreFeatureIsSupported
 	DataStoreName
 }
@@ -162,7 +148,7 @@ type KVStore interface {
 	//		 If the document is a tombstone, nothing is stored.
 	// Return values:
 	// - cas: The document's current CAS (sequence) number.
-	// - err: Error, if any. MissingError if the key does not exist.
+	// - err: Error, if any. Returns an error if the key does not exist.
 	Get(k string, rv interface{}) (cas uint64, err error)
 
 	// GetRaw returns value of a key as a raw byte array.
@@ -171,7 +157,7 @@ type KVStore interface {
 	// Return values:
 	// - rv: The raw value. Nil if the document is a tombstone.
 	// - cas: The document's current CAS (sequence) number.
-	// - err: Error, if any. MissingError if the key does not exist.
+	// - err: Error, if any. Returns an error if the key does not exist.
 	GetRaw(k string) (rv []byte, cas uint64, err error)
 
 	// GetAndTouchRaw is like GetRaw, but also sets the document's expiration time.
@@ -238,12 +224,12 @@ type KVStore interface {
 
 	// Delete removes a document by setting its value to nil, making it a tombstone.
 	// System xattrs are preserved but user xattrs are removed.
-	// Returns MissingError if the document doesn't exist or has no value.
+	// Returns an error if the document doesn't exist or has no value.
 	Delete(k string) error
 
 	// Remove a document if its CAS matches the given value.
 	// System xattrs are preserved but user xattrs are removed.
-	// Returns MissingError if the document doesn't exist or has no value. Returns a CasMismatchErr if the CAS doesn't match.
+	// Returns an erorr if the document doesn't exist or has no value. Returns a CasMismatchErr if the CAS doesn't match.
 	Remove(k string, cas uint64) (casOut uint64, err error)
 
 	// Update interactively updates a document. The document's current value (nil if none) is passed to
