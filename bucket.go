@@ -17,10 +17,11 @@ import (
 
 // BucketDocument is a raw representation of a document, body and xattrs as bytes, along with cas.
 type BucketDocument struct {
-	Body   []byte
-	Xattrs map[string][]byte
-	Cas    uint64
-	Expiry uint32 // Item expiration time (UNIX Epoch time)
+	Body        []byte
+	Xattrs      map[string][]byte
+	Cas         uint64
+	Expiry      uint32 // Item expiration time (UNIX Epoch time)
+	IsTombstone bool   // IsTombstone is true if the document is a tombstone
 }
 
 // BucketStoreFeature can be tested for with BucketStoreFeatureIsSupported.IsSupported.
@@ -322,11 +323,15 @@ type XattrStore interface {
 	// - cas: Expected CAS value
 	// - opts: Options; use PreserveExpiry to avoid setting expiry
 	// - value: The raw value to set, or nil to *leave unchanged*
-	// - xattrValues: Each key represents a raw xattr values to set, or nil to *delete*
-	WriteWithXattrs(ctx context.Context, k string, exp uint32, cas uint64, value []byte, xattrValue map[string][]byte, opts *MutateInOptions) (casOut uint64, err error)
+	// - xattrValues: Each key represent a raw xattrs value to set, setting any of these values to nil will result in an error.
+	// - xattrsToDelete: The names of xattrs to delete.
+	WriteWithXattrs(ctx context.Context, k string, exp uint32, cas uint64, value []byte, xattrsValues map[string][]byte, xattrsToDelete []string, opts *MutateInOptions) (casOut uint64, err error)
 
-	// WriteTombstoneWithXattrs turns a document into a tombstone and updates its xattrs.  If deleteBody=true, will delete an existing body.
-	WriteTombstoneWithXattrs(ctx context.Context, k string, exp uint32, cas uint64, xattrValue map[string][]byte, deleteBody bool, opts *MutateInOptions) (casOut uint64, err error)
+	// WriteTombstoneWithXattrs is used when writing a tombstone. This is used when creating a tombstone an existing document, modifying a tombstone, or creating a tombstone from no document. If deleteBody=true, will delete an existing body.
+	WriteTombstoneWithXattrs(ctx context.Context, k string, exp uint32, cas uint64, xattrValue map[string][]byte, xattrsToDelete []string, deleteBody bool, opts *MutateInOptions) (casOut uint64, err error)
+
+	// WriteResurrectionWithXattrs is used when resurrecting a tombstone. Any existing xattrs on a document will be overwritten.
+	WriteResurrectionWithXattrs(ctx context.Context, k string, exp uint32, body []byte, xattrs map[string][]byte, opts *MutateInOptions) (casOut uint64, err error)
 
 	// SetXattrs updates xattrs of a document.
 	// Parameters:
@@ -447,6 +452,30 @@ var ErrPathExists = errors.New("subdocument path already exists in document")
 // ErrPathMismatch is returned by subdoc operations when the path exists but has the wrong type.
 var ErrPathMismatch = errors.New("type mismatch in subdocument path")
 
+// ErrDeleteXattrOnTombstone is returned when trying to delete an xattr on a tombstone document.
+var ErrDeleteXattrOnTombstone = errors.New("cannot delete xattr on tombstone")
+
+// ErrDeleteXattrOnTombstoneResurrection is returned when trying to delete an xattr on a resurrection of a tombstone document.
+var ErrDeleteXattrOnTombstoneResurrection = errors.New("cannot delete xattr on resurrection of a tombstone")
+
+// ErrDeleteXattrOnDocumentInsert is returned when trying to specify xattrs to delete on a document insert, which is invalid.
+var ErrDeleteXattrOnDocumentInsert = errors.New("cannot delete xattrs on document insert")
+
+// ErrUpsertAndDeleteSameXattr is returned when trying to upsert and delete the same xattr in the same operation.
+var ErrUpsertAndDeleteSameXattr = errors.New("cannot upsert and delete the same xattr in the same operation")
+
+// ErrNilXattrValue is returned when trying to set a named xattr to a nil value. This is allowed in Couchbase Server, but not rosmar and has no use in Sync Gateway.
+var ErrNilXattrValue = errors.New("nil xattr value not allowed")
+
+// ErrDocumentExistsOnResurrection is returned when trying to resurrect a document that already exists in a live form.
+var ErrDocumentExistsOnResurrection = errors.New("document already exists on resurrection")
+
+// ErrNeedXattrs is returned xattrs are not specified.
+var ErrNeedXattrs = errors.New("xattrs must be specified to update or to delete")
+
+// ErrNeedBody is returned when a function requires a non nil body.
+var ErrNeedBody = errors.New("body must be specified")
+
 // UpdateFunc is a callback passed to KVStore.Update.
 // Parameters:
 // - current: The document's current raw value. nil if it's a tombstone or doesn't exist.
@@ -459,18 +488,18 @@ type UpdateFunc func(current []byte) (updated []byte, expiry *uint32, delete boo
 
 // UpdatedDoc is returned by WriteUpdateWithXattrsFunc, to indicate the new document value and xattrs.
 type UpdatedDoc struct {
-	Doc         []byte               // Raw value of the document
-	Xattrs      map[string][]byte    // Each xattr found with its value. If the xattr is not specified by Update or not present in the document, it will be missing from the document
-	IsTombstone bool                 // IsTombstone is true if the document is a tombstone
-	Expiry      *uint32              // Expiry is non-nil to set an expiry
-	Spec        []MacroExpansionSpec // Spec represents which macros to expand
+	Doc            []byte               // Raw value of the document
+	Xattrs         map[string][]byte    // Each xattr found with its value. If the xattr is specified, it will be preserved.
+	XattrsToDelete []string             // xattrs to delete. This must be empty if the updated document will be a resurrection of a tombstone.
+	IsTombstone    bool                 // IsTombstone is true if the document is a tombstone
+	Expiry         *uint32              // Expiry is non-nil to set an expiry
+	Spec           []MacroExpansionSpec // Spec represents which macros to expand
 }
 
 // WriteUpdateWithXattrsFunc is used by XattrStore.WriteUpdateWithXattrs, used to transform the doc in preparation for update.
 // Parameters:
 // - doc: Current document raw value
-// - xattrs: Current values of xattrs specified in WriteUpdateWithXattrs
-// - userXattr: Current value of requested user xattr (if any)
+// - xattrs: Current value of xattrs
 // - cas: Document's current CAS
 // Return values:
 // - UpdatedDoc: New value to store (or nil to leave unchanged)
