@@ -60,7 +60,7 @@ type FeedFilterType string // Type of key filtered from the feed (User doc, etc.
 // FeedEvent is a notification of a change in a data store.
 type FeedEvent struct {
 	TimeReceived time.Time      // Used for latency calculations
-	ItemType     FeedFilterType // Type of filter applied from filter function, if FeedArguments.FilterFunc is set
+	FilterType   FeedFilterType // Type of filter applied from filter function, if FeedArguments.FilterFunc is set
 	Key          []byte         // Item key
 	Value        []byte         // Item value
 	Cas          uint64         // Cas of document
