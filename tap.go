@@ -84,12 +84,26 @@ type FeedArguments struct {
 	ID               string              // Feed ID, used to build unique identifier for DCP feed
 	Backfill         uint64              // Timestamp of oldest item to send. Use FeedNoBackfill to suppress all past items.
 	Dump             bool                // If set, feed will stop after sending existing items.
-	KeysOnly         bool                // If true, events will not contain values or xattrs.
 	Terminator       chan bool           // Feed will stop when this channel is closed (DCP Only)
 	DoneChan         chan struct{}       // DoneChan is closed when the mutation feed terminates.
 	CheckpointPrefix string              // Key of checkpoint doc to save state in, if non-empty
 	Scopes           map[string][]string // Collection names to stream - map keys are scopes
+	FeedContent      FeedContent         // Type of content to send in feed
 }
+
+// FeedContent controls the content sent in the feed
+type FeedContent uint8
+
+const (
+	// FeedContentDefault is the default feed content - returns document bodies and xattrs
+	FeedContentDefault FeedContent = iota
+	// FeedContentKeysOnly returns only document keys
+	FeedContentKeysOnly
+	// FeedContentBodyOnly returns only document bodies
+	FeedContentBodyOnly
+	// FeedContentXattrOnly returns only document xattrs
+	FeedContentXattrOnly
+)
 
 // Value for FeedArguments.Backfill denoting that no past events at all should be sent.  FeedNoBackfill value
 // used as actual value for walrus, go-couchbase bucket, these event types aren't defined using usual approach
@@ -114,6 +128,14 @@ var ErrEmptyMetadata = errors.New("Empty Sync Gateway metadata")
 type Xattr struct {
 	Name  string
 	Value []byte
+}
+
+func Xattrs(xattrs map[string][]byte) []Xattr {
+	xattrList := make([]Xattr, 0, len(xattrs))
+	for name, value := range xattrs {
+		xattrList = append(xattrList, Xattr{Name: name, Value: value})
+	}
+	return xattrList
 }
 
 // EncodeValueWithXattrs encodes a document value and Xattrs into DCP data format.
