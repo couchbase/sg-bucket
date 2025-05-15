@@ -58,13 +58,12 @@ const (
 type FeedItemDocType = uint8
 
 const (
-	FeedItemTypeCustomerDocument FeedItemDocType = 1 << iota // Document
-	FeedItemTypeSyncMetadataDoc
-	FeedItemTypeUserDoc           // User doc
-	FeedItemTypeRoleDoc           // Role doc
-	FeedItemTypeSgCFGDoc          // Sync Gateway config doc
-	FeedItemTypeUnusedSeqDoc      // Unused sequence document
-	FeedItemTypeUnusedSeqRangeDoc // Unused sequence range document
+	FeedItemTypeCustomerDocument  FeedItemDocType = 1 << iota // Document
+	FeedItemTypeUserDoc                                       // User doc
+	FeedItemTypeRoleDoc                                       // Role doc
+	FeedItemTypeSgCFGDoc                                      // Sync Gateway config doc
+	FeedItemTypeUnusedSeqDoc                                  // Unused sequence document
+	FeedItemTypeUnusedSeqRangeDoc                             // Unused sequence range document
 )
 
 // FeedEvent is a notification of a change in a data store.
