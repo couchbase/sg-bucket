@@ -55,20 +55,33 @@ const (
 	FeedDataTypeXattr                           // Document has Xattrs
 )
 
+type FeedItemDocType = uint8
+
+const (
+	FeedItemTypeCustomerDocument FeedItemDocType = 1 << iota // Document
+	FeedItemTypeSyncMetadataDoc
+	FeedItemTypeUserDoc           // User doc
+	FeedItemTypeRoleDoc           // Role doc
+	FeedItemTypeSgCFGDoc          // Sync Gateway config doc
+	FeedItemTypeUnusedSeqDoc      // Unused sequence document
+	FeedItemTypeUnusedSeqRangeDoc // Unused sequence range document
+)
+
 // FeedEvent is a notification of a change in a data store.
 type FeedEvent struct {
-	TimeReceived time.Time    // Used for latency calculations
-	Key          []byte       // Item key
-	Value        []byte       // Item value
-	Cas          uint64       // Cas of document
-	RevNo        uint64       // Server revision number of document
-	Flags        uint32       // Item flags
-	Expiry       uint32       // Item expiration time (UNIX Epoch time)
-	CollectionID uint32       // ID of the item's collection - 0x0 for the default collection
-	VbNo         uint16       // Vbucket of the document
-	Opcode       FeedOpcode   // Type of event
-	DataType     FeedDataType // Datatype of document
-	Synchronous  bool         // When true, requires that event is processed synchronously
+	TimeReceived time.Time       // Used for latency calculations
+	Key          []byte          // Item key
+	Value        []byte          // Item value
+	Cas          uint64          // Cas of document
+	RevNo        uint64          // Server revision number of document
+	Flags        uint32          // Item flags
+	Expiry       uint32          // Item expiration time (UNIX Epoch time)
+	CollectionID uint32          // ID of the item's collection - 0x0 for the default collection
+	VbNo         uint16          // Vbucket of the document
+	Opcode       FeedOpcode      // Type of event
+	DataType     FeedDataType    // Datatype of document
+	ItemType     FeedItemDocType // Type of item (sgw metadata doc, principal doc etc.)
+	Synchronous  bool            // When true, requires that event is processed synchronously
 }
 
 // MutationFeed shows events from the bucket can be read from the channel returned by Events().
@@ -89,6 +102,16 @@ type FeedArguments struct {
 	DoneChan         chan struct{}       // DoneChan is closed when the mutation feed terminates.
 	CheckpointPrefix string              // Key of checkpoint doc to save state in, if non-empty
 	Scopes           map[string][]string // Collection names to stream - map keys are scopes
+	MetadataKeys     *FeedMetadataKeys   // Keys of metadata documents to filter on for mutation feed
+}
+
+type FeedMetadataKeys struct {
+	SyncPrefix      string // Prefix for Sync Gateway metadata
+	UserPrefix      string // Prefix for user documents
+	RolePrefix      string // Prefix for role documents
+	UnusedSeqPrefix string // Prefix for unused sequences
+	UnusedSeqRange  string // Range of unused sequence ranges
+	SgCFGPrefix     string // Prefix for Sync Gateway config docs
 }
 
 // Value for FeedArguments.Backfill denoting that no past events at all should be sent.  FeedNoBackfill value
