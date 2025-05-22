@@ -18,6 +18,12 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
+// jsStackDepthLimit defines an upper-limit for how deep the JavaScript stack can go before Otto returns an error.
+//
+// The value 10,000 aligns with the maximum depth of Go's stdlib JSON library (golang/go#31789)
+// which is a good match for the worst-case of users recursing into nested document properties.
+const jsStackDepthLimit = 10_000
+
 // Alternate type to wrap a Go string in to mark that Call() should interpret it as JSON.
 // That is, when Call() sees a parameter of type JSONString it will parse the JSON and use
 // the result as the parameter value, instead of just converting it to a JS string.
@@ -63,6 +69,7 @@ func (runner *JSRunner) Init(funcSource string, timeout time.Duration) error {
 
 func (runner *JSRunner) InitWithLogging(funcSource string, timeout time.Duration, consoleErrorFunc func(string), consoleLogFunc func(string)) error {
 	runner.js = otto.New()
+	runner.js.SetStackDepthLimit(jsStackDepthLimit)
 	runner.fn = otto.UndefinedValue()
 	runner.timeout = timeout
 
