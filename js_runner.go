@@ -238,7 +238,7 @@ func (runner *JSRunner) Call(ctx context.Context, inputs ...interface{}) (_ inte
 	return nil, err
 }
 
-// Returns the Sync Function String
+// Returns the JavaScript function as a string
 func (runner *JSRunner) GetFunction() string {
 	return runner.fnSource
 }
