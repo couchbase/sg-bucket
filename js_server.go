@@ -27,6 +27,7 @@ type JSServer struct {
 type JSServerTask interface {
 	SetFunction(funcSource string) (bool, error)
 	Call(ctx context.Context, inputs ...interface{}) (interface{}, error)
+	GetFunction() string
 }
 
 // Factory function that creates JSServerTasks.
