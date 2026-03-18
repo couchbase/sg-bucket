@@ -130,6 +130,7 @@ type Xattr struct {
 	Value []byte
 }
 
+// Xattrs converts a map of xattr name/value pairs into a slice of Xattr structs.
 func Xattrs(xattrs map[string][]byte) []Xattr {
 	xattrList := make([]Xattr, 0, len(xattrs))
 	for name, value := range xattrs {
