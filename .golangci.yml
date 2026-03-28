@@ -1,90 +1,120 @@
-# Copyright 2020-Present Couchbase, Inc.
+# Copyright 2025-Present Couchbase, Inc.
 #
-# Use of this software is governed by the Business Source License included in
-# the file licenses/BSL-Couchbase.txt.  As of the Change Date specified in that
-# file, in accordance with the Business Source License, use of this software
-# will be governed by the Apache License, Version 2.0, included in the file
-# licenses/APL2.txt.
+# Use of this software is governed by the Business Source License included
+# in the file licenses/BSL-Couchbase.txt.  As of the Change Date specified
+# in that file, in accordance with the Business Source License, use of this
+# software will be governed by the Apache License, Version 2.0, included in
+# the file licenses/APL2.txt.
 
-# config file for golangci-lint
-
+version: "2"
 linters:
   enable:
-    #- bodyclose # checks whether HTTP response body is closed successfully
-    #- dupl # Tool for code clone detection
-    - errcheck # Errcheck is a program for checking for unchecked errors in go programs. These unchecked errors can be critical bugs in some cases
-    #- goconst # Finds repeated strings that could be replaced by a constant
-    #- gocritic # The most opinionated Go source code linter
-    - goimports # Goimports does everything that gofmt does. Additionally it checks unused imports
-    #- goprintffuncname # Checks that printf-like functions are named with `f` at the end
-    #- gosec # (gas) Inspects source code for security problems
-    #- gosimple # (megacheck) Linter for Go source code that specializes in simplifying a code
-    - govet # (vet, vetshadow) Vet examines Go source code and reports suspicious constructs, such as Printf calls whose arguments do not align with the format string
-    #- ineffassign # Detects when assignments to existing variables are not used
-    - misspell # Finds commonly misspelled English words in comments
-    #- nakedret # Finds naked returns in functions greater than a specified function length
-    #- prealloc # Finds slice declarations that could potentially be preallocated
-    #- revive # Golint differs from gofmt. Gofmt reformats Go source code, whereas golint prints out style mistakes
-    #- staticcheck # (megacheck) Staticcheck is a go vet on steroids, applying a ton of static analysis checks
-    #- structcheck # Finds unused struct fields - typecheck # Like the front-end of a Go compiler, parses and type-checks Go code
-    #- unconvert # Remove unnecessary type conversions
-    #- unparam # Reports unused function parameters
-    #- unused # (megacheck) Checks Go code for unused constants, variables, functions and types
-  disable:
-    - asciicheck # Simple linter to check that your code does not contain non-ASCII identifiers
-    - depguard # Go linter that checks if package imports are in a list of acceptable packages
-    - dogsled # Checks assignments with too many blank identifiers # (e.g. x, _, _, _, := f())
-    - funlen # Tool for detection of long functions
-    - gochecknoglobals # Checks that no globals are present in Go code
-    - gochecknoinits # Checks that no init functions are present in Go code
-    - gocognit # Computes and checks the cognitive complexity of functions
-    - gocyclo # Computes and checks the cyclomatic complexity of functions
-    - godot # Check if comments end in a period
-    - godox # Tool for detection of FIXME, TODO and other comment keywords
-    - goerr113 # Golang linter to check the errors handling expressions
-    - gofmt # Gofmt checks whether code was gofmt-ed. By default this tool runs with -s option to check for code simplification
-    - gomnd # An analyzer to detect magic numbers.
-    - gomodguard # Allow and block list linter for direct Go module dependencies.
-    - interfacer # Linter that suggests narrower interface types
-    - lll # Reports long lines
-    - nestif # Reports deeply nested if statements
-    - nolintlint # Reports ill-formed or insufficient nolint directives
-    - rowserrcheck # checks whether Err of rows is checked successfully
-    - scopelint # Scopelint checks for unpinned variables in go programs
-    - stylecheck # Stylecheck is a replacement for golint
-    - testpackage # linter that makes you use a separate _test package
-    - unused # (megacheck) Checks Go code for unused constants, variables, functions and types
-    - whitespace # Tool for detection of leading and trailing whitespace
-    - wsl # Whitespace Linter - Forces you to use empty lines!
-    # Once fixed, should enable
     - bodyclose # checks whether HTTP response body is closed successfully
-    - deadcode # Finds unused code
     - dupl # Tool for code clone detection
     - goconst # Finds repeated strings that could be replaced by a constant
     - gocritic # The most opinionated Go source code linter
     - goprintffuncname # Checks that printf-like functions are named with `f` at the end
-    - gosec # (gas) Inspects source code for security problems
-    - gosimple # (megacheck) Linter for Go source code that specializes in simplifying a code
-    - ineffassign # Detects when assignments to existing variables are not used
-    - nakedret # Finds naked returns in functions greater than a specified function length
+    - gosec # Inspects source code for security problems
+    - misspell # Finds commonly misspelled English words in comments
+    #- nakedret # Finds naked returns in functions greater than a specified function length
     - prealloc # Finds slice declarations that could potentially be preallocated
     - revive # Golint differs from gofmt. Gofmt reformats Go source code, whereas golint prints out style mistakes
-    - staticcheck # (megacheck) Staticcheck is a go vet on steroids, applying a ton of static analysis checks
-    - structcheck # Finds unused struct fields
     - unconvert # Remove unnecessary type conversions
-    - unparam # Reports unused function parameters
-    - varcheck # Finds unused global variables and constants
+    # - unparam # Reports unused function parameters
+  settings:
+    gocritic:
+      disabled-checks:
+        - appendAssign
+        - ifElseChain
+        - valSwap
+    gosec:
+      excludes:
+        - G115 # integer overflow conversion
+    # fieldalignment needs special effort to decide or not
+    # govet:
+    #  enable:
+    #    - fieldalignment
+    revive:
+      enable-all-rules: true
+      rules:
+        - name: add-constant # avoid magic numbers, picked up by goconst linter
+          disabled: true
+        - name: bare-return
+          disabled: true
+        - name: cognitive-complexity
+          disabled: true
+        - name: comment-spacings # no space between comment delimiter and comment text
+          disabled: true
+        - name: confusing-naming # Method differs only be capitalization in same source file
+          disabled: true
+        - name: cyclomatic
+          disabled: true
+        - name: early-return
+          disabled: true
+        - name: enforce-switch-style # switch must have a default case
+          disabled: true
+        - name: exported # Exported function and methods should have comments
+          disabled: true
+        - name: empty-lines # extra empty line at start of a block
+          disabled: true
+        - name: error-strings # errors strings should not be capitalized or end with punctuation or a newline
+          disabled: true
+        - name: flag-parameter # parameter seems to be a control flag, avoid control coupling
+          disabled: true
+        - name: identical-switch-branches
+          disabled: true
+        - name: indent-error-flow # if block ends with a return statement, so drop this else and outdent its block # if block ends with a return statement, so drop this else and outdent its block # if block ends with a return statement, so drop this else and outdent its block # if block ends with a return statement, so drop this else and outdent its block
+          disabled: true
+        - name: line-length-limit
+          disabled: true
+        - name: max-public-structs
+          disabled: true
+        - name: receiver-naming # receiver name should be consistent across methods
+          disabled: true
+        - name: redefines-builtin-id # redefinition of the built-in function
+          disabled: true
+        - name: unchecked-type-assertion
+          disabled: true
+        - name: unhandled-error
+          disabled: true
+        - name: unnecessary-format # unnecessary use of formatting function "fmt.Errorf", you can replace with errors.New
+          disabled: true
+        - name: unused-parameter # parameter seems to be unused, consider removeing or renaming it as _
+          disabled: true
+        - name: unused-receiver # method receiver is not referenced in method's body, consider removing or renaming as _
+          disabled: true
+        - name: use-any # 'interface{}' can be replaced by any
+          disabled: true
+        - name: use-errors-new # replace fmt.Errorf by errors.New
+          disabled: true
+        - name: var-declaration # omit type or default value in a variable delcaration
+          disabled: true
+    staticcheck:
+      checks:
+        - all # enable all before turning off selected
+        # disable some checks
+        - -ST1005 # errors strings should not be capitalized
+        - -ST1020 # comment on exported method FuncName should be of form FuncName ...
+        - -ST1021 # comment on exported type Foo should be of form Foo ...
+        - -ST1022 # comment on exported var Foo should be of form Foo ...
+        - -ST1016 # methods on the same type should have same receiver name
+        - -ST1023 # should omit type from declartion, it will be inferred from right hand side
+        - -QF1011 # could omit type from declaration, it will be inferred from right hand side
+  exclusions:
+    generated: strict
+    rules:
+      - linters:
+          # Disable goconst in test files, often we have duplicated strings across tests, but don't make sense as constants.
+          - goconst
+          - prealloc
+        path: (_test.*\.go)
+      - linters:
+          - govet
+        path: (_test.*\.go)
+        text: fieldalignment # detect Go structs that would take less memory if their fields were sorted
 
-# Don't enable fieldalignment, changing the field alignment requires checking to see if anyone uses constructors
-# without names. If there is a memory issue on a specific field, that is best found with a heap profile.
-#linters-settings:
-#  govet:
-#    enable:
-#      - fieldalignment # detect Go structs that would take less memory if their fields were sorted
-
-# Disable goconst in test files, often we have duplicated strings across tests, but don't make sense as constants.
-issues:
-  exclude-rules:
-    - path: (_test\.go|utilities_testing\.go)
-      linters:
-        - goconst
+formatters:
+  enable:
+    - goimports
+  exclusions:
+    generated: strict
