@@ -6,6 +6,7 @@
 //  software will be governed by the Apache License, Version 2.0, included in
 //  the file licenses/APL2.txt.
 
+// Package sgbucket defines common interfaces to be used for interacting with buckets in Couchbase Server.
 package sgbucket
 
 import (
