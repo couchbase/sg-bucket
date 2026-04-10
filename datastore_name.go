@@ -65,12 +65,16 @@ func NewValidDataStoreName(scope, collection string) (id DataStoreNameImpl, err 
 
 // Returns true if scope.coll is a valid data store name.
 func IsValidDataStoreName(scope, coll string) bool {
-	scopeIsDefault := (scope == DefaultScope)
-	collIsDefault := (coll == DefaultCollection)
-	scopeIsMobileSystem := scope == MobileSystemScope
-	collIsMobileSystem := coll == MobileSystemCollection
-	return (scopeIsDefault || scopeIsMobileSystem || dsNameRegexp.MatchString(scope)) &&
-		((collIsDefault && scopeIsDefault) || (collIsMobileSystem && scopeIsMobileSystem) || dsNameRegexp.MatchString(coll))
+	if scope == DefaultScope {
+		return coll == DefaultCollection || dsNameRegexp.MatchString(coll)
+	}
+	if scope == MobileSystemScope {
+		return coll == MobileSystemCollection
+	}
+	if dsNameRegexp.MatchString(scope) {
+		return dsNameRegexp.MatchString(coll)
+	}
+	return false
 }
 
 var (
