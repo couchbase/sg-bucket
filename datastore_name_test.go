@@ -21,6 +21,7 @@ func TestValidDataStoreName(t *testing.T) {
 		{"ABCabc123_-%", "ABCabc123_-%"},
 		{"_default", "myCollection"},
 		{"_default", "_default"},
+		{"_system", "_mobile"},
 	}
 
 	invalidDataStoreNames := [][2]string{

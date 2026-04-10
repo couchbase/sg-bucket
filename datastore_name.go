@@ -30,7 +30,9 @@ type DataStoreNameImpl struct {
 const (
 	DefaultCollection        = "_default" // Name of the default collection
 	DefaultScope             = "_default" // Name of the default collection
-	ScopeCollectionSeparator = "."        // Delimiter between scope & collection names
+	MobileSystemScope        = "_system"
+	MobileSystemCollection   = "_mobile"
+	ScopeCollectionSeparator = "." // Delimiter between scope & collection names
 )
 
 var dsNameRegexp = regexp.MustCompile("^[a-zA-Z0-9-][a-zA-Z0-9%_-]{0,250}$")
@@ -63,10 +65,16 @@ func NewValidDataStoreName(scope, collection string) (id DataStoreNameImpl, err 
 
 // Returns true if scope.coll is a valid data store name.
 func IsValidDataStoreName(scope, coll string) bool {
-	scopeIsDefault := (scope == DefaultScope)
-	collIsDefault := (coll == DefaultCollection)
-	return (scopeIsDefault || dsNameRegexp.MatchString(scope)) &&
-		((collIsDefault && scopeIsDefault) || dsNameRegexp.MatchString(coll))
+	if scope == DefaultScope {
+		return coll == DefaultCollection || dsNameRegexp.MatchString(coll)
+	}
+	if scope == MobileSystemScope {
+		return coll == MobileSystemCollection
+	}
+	if dsNameRegexp.MatchString(scope) {
+		return dsNameRegexp.MatchString(coll)
+	}
+	return false
 }
 
 var (
