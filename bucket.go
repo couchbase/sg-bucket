@@ -39,6 +39,7 @@ const (
 	BucketStoreFeatureMobileXDCR
 	BucketStoreFeatureMultiXattrSubdocOperations
 	BucketStoreFeatureN1qlIfNotExistsDDL
+	BucketStoreFeatureRangeScan
 )
 
 // BucketStore is a basic interface that describes a bucket - with one or many underlying DataStore.
