@@ -167,6 +167,10 @@ type KVStore interface {
 	// Since this changes the document, it generates a new CAS value and posts an event.
 	GetAndTouchRaw(k string, exp uint32) (rv []byte, cas uint64, err error)
 
+	// GetCas returns the CAS of the document with the given key, including tombstones.
+	// Returns a key-not-found error if the document does not exist and is not a tombstone.
+	GetCas(k string) (cas uint64, err error)
+
 	// Touch is equivalent to GetAndTouchRaw, but does not return the value.
 	Touch(k string, exp uint32) (cas uint64, err error)
 
