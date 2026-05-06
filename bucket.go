@@ -69,7 +69,7 @@ type DynamicDataStoreBucket interface {
 
 // MutationFeedStore is a DataStore that supports a DCP or TAP streaming mutation feed.
 type MutationFeedStore interface {
-	// GetMaxVbno returns the number of vBuckets of this store; usually 1024.
+	// GetMaxVbno returns the number of vBuckets of this store.
 	GetMaxVbno() (uint16, error)
 
 	// StartDCPFeed starts a new DCP event feed. Events will be passed to the callback function.
@@ -92,6 +92,9 @@ type DataStore interface {
 	// An integer that uniquely identifies this Collection in its Bucket.
 	// The default collection always has the ID zero.
 	GetCollectionID() uint32
+
+	// GetMaxVbno returns the number of vBuckets of this store.
+	GetMaxVbno() (uint16, error)
 
 	KVStore
 	XattrStore
