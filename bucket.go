@@ -94,7 +94,7 @@ type DataStore interface {
 	GetCollectionID() uint32
 
 	// GetMaxVbno returns the number of vBuckets of this store.
-	GetMaxVbno() (uint16, error)
+	GetMaxVbno(ctx context.Context) (uint16, error)
 
 	KVStore
 	XattrStore
