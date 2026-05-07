@@ -63,14 +63,14 @@ type BucketStore interface {
 
 // DynamicDataStoreBucket is an interface that describes a bucket that can change its set of DataStores.
 type DynamicDataStoreBucket interface {
-	CreateDataStore(context.Context, DataStoreName) error // CreateDataStore creates a new DataStore in the bucket
-	DropDataStore(DataStoreName) error                    // DropDataStore drops a DataStore from the bucket
+	CreateDataStore(ctx context.Context, name DataStoreName) error // CreateDataStore creates a new DataStore in the bucket
+	DropDataStore(ctx context.Context, name DataStoreName) error   // DropDataStore drops a DataStore from the bucket
 }
 
 // MutationFeedStore is a DataStore that supports a DCP or TAP streaming mutation feed.
 type MutationFeedStore interface {
 	// GetMaxVbno returns the number of vBuckets of this store.
-	GetMaxVbno() (uint16, error)
+	GetMaxVbno(ctx context.Context) (uint16, error)
 
 	// StartDCPFeed starts a new DCP event feed. Events will be passed to the callback function.
 	// To close the feed, pass a channel in args.Terminator and close that channel. The callback will be called for each event processed. dbStats are optional to provide metrics.
@@ -147,6 +147,7 @@ func NewMacroExpansionSpec(specPath string, macro MacroExpansionType) MacroExpan
 type KVStore interface {
 	// Get retrives a document value of a key and unmarshals it.
 	// Parameters:
+	// - ctx: Context for logging and cancellation
 	// - k: The key (document ID)
 	// - rv: The value, if any, is stored here. Must be a pointer.
 	//       If it is a `*[]byte` the raw value will be stored in it.
@@ -155,69 +156,75 @@ type KVStore interface {
 	// Return values:
 	// - cas: The document's current CAS (sequence) number.
 	// - err: Error, if any. Returns an error if the key does not exist.
-	Get(k string, rv interface{}) (cas uint64, err error)
+	Get(ctx context.Context, k string, rv interface{}) (cas uint64, err error)
 
 	// GetRaw returns value of a key as a raw byte array.
 	// Parameters:
+	// - ctx: Context for logging and cancellation
 	// - k: The key (document ID)
 	// Return values:
 	// - rv: The raw value. Nil if the document is a tombstone.
 	// - cas: The document's current CAS (sequence) number.
 	// - err: Error, if any. Returns an error if the key does not exist.
-	GetRaw(k string) (rv []byte, cas uint64, err error)
+	GetRaw(ctx context.Context, k string) (rv []byte, cas uint64, err error)
 
 	// GetAndTouchRaw is like GetRaw, but also sets the document's expiration time.
 	// Since this changes the document, it generates a new CAS value and posts an event.
-	GetAndTouchRaw(k string, exp uint32) (rv []byte, cas uint64, err error)
+	GetAndTouchRaw(ctx context.Context, k string, exp uint32) (rv []byte, cas uint64, err error)
 
 	// Touch is equivalent to GetAndTouchRaw, but does not return the value.
-	Touch(k string, exp uint32) (cas uint64, err error)
+	Touch(ctx context.Context, k string, exp uint32) (cas uint64, err error)
 
 	// Add creates a document; similar to Set but gives up if the key exists with a non-nil value.
 	// Parameters:
+	// - ctx: Context for logging and cancellation
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp (0 for never)
 	// - v: The value to set. Will be marshaled to JSON unless it is a `[]byte` or `*[]byte`.
 	// Return values:
 	// - added: True if the document was added, false if it already has a value.
 	// - err: Error, if any. Does not return ErrKeyExists.
-	Add(k string, exp uint32, v interface{}) (added bool, err error)
+	Add(ctx context.Context, k string, exp uint32, v interface{}) (added bool, err error)
 
 	// AddRaw creates a document; similar to SetRaw but gives up if the key exists with a non-nil value.
 	// Parameters:
+	// - ctx: Context for logging and cancellation
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp (0 for never)
 	// - v: The raw value to set.
 	// Return values:
 	// - added: True if the document was added, false if it already has a value.
 	// - err: Error, if any. Does not return ErrKeyExists.
-	AddRaw(k string, exp uint32, v []byte) (added bool, err error)
+	AddRaw(ctx context.Context, k string, exp uint32, v []byte) (added bool, err error)
 
 	// Set upserts a a document, creating it if it doesn't exist.
 	// Parameters:
+	// - ctx: Context for logging and cancellation
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp (0 for never)
 	// - opts: Options. Use PreserveExpiry=true to leave the expiration alone
 	// - v: The value to set. Will be marshaled to JSON unless it is a `[]byte` or `*[]byte`
 	// Return values:
 	// - err: Error, if any
-	Set(k string, exp uint32, opts *UpsertOptions, v interface{}) error
+	Set(ctx context.Context, k string, exp uint32, opts *UpsertOptions, v interface{}) error
 
 	// Set upserts a document, creating it if it doesn't exist.
 	// Parameters:
+	// - ctx: Context for logging and cancellation
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp (0 for never)
 	// - opts: Options. Use PreserveExpiry=true to leave the expiration alone
 	// - v: The raw value to set
 	// Return values:
 	// - err: Error, if any. Does not return ErrKeyExists
-	SetRaw(k string, exp uint32, opts *UpsertOptions, v []byte) error
+	SetRaw(ctx context.Context, k string, exp uint32, opts *UpsertOptions, v []byte) error
 
 	// WriteCas is the most general write method. Sets the value of a document, creating it if it doesn't
 	// exist, but checks for CAS conflicts:
 	// If the document has a value, and its CAS differs from the input `cas` parameter, the method
 	// fails and returns a CasMismatchErr.
 	// Parameters:
+	// - ctx: Context for logging and cancellation
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp (0 for never)
 	// - cas: Expected CAS value
@@ -226,17 +233,17 @@ type KVStore interface {
 	// Return values:
 	// - casOut: The new CAS value
 	// - err: Error, if any. May be CasMismatchErr
-	WriteCas(k string, exp uint32, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
+	WriteCas(ctx context.Context, k string, exp uint32, cas uint64, v interface{}, opt WriteOptions) (casOut uint64, err error)
 
 	// Delete removes a document by setting its value to nil, making it a tombstone.
 	// System xattrs are preserved but user xattrs are removed.
 	// Returns an error if the document doesn't exist or has no value.
-	Delete(k string) error
+	Delete(ctx context.Context, k string) error
 
 	// Remove a document if its CAS matches the given value.
 	// System xattrs are preserved but user xattrs are removed.
 	// Returns an erorr if the document doesn't exist or has no value. Returns a CasMismatchErr if the CAS doesn't match.
-	Remove(k string, cas uint64) (casOut uint64, err error)
+	Remove(ctx context.Context, k string, cas uint64) (casOut uint64, err error)
 
 	// Update interactively updates a document. The document's current value (nil if none) is passed to
 	// the callback, then the result of the callback is used to update the value.
@@ -248,17 +255,19 @@ type KVStore interface {
 	//		 flag is set. The UpdateFunc callback unfortunately has no way to override this.
 	//
 	// Parameters:
+	// - ctx: Context for logging and cancellation
 	// - k: The key (document ID)
 	// - exp: Expiration timestamp to set (0 for never)
 	// - callback: Will be called to compute the new value
 	// Return values:
 	// - casOut: The document's new CAS
 	// - err: Error, if any (including an error returned by the callback)
-	Update(k string, exp uint32, callback UpdateFunc) (casOut uint64, err error)
+	Update(ctx context.Context, k string, exp uint32, callback UpdateFunc) (casOut uint64, err error)
 
 	// Incr adds a number to a document serving as a counter.
 	// The document's value must be an ASCII decimal integer.
 	// Parameters:
+	// - ctx: Context for logging and cancellation
 	// - k: The key (document ID)
 	// - amt: The amount to add to the existing value
 	// - def: The number to store if there is no existing value
@@ -266,14 +275,14 @@ type KVStore interface {
 	// Return values:
 	// - casOut: The document's new CAS
 	// - err: Error, if any
-	Incr(k string, amt, def uint64, exp uint32) (casOut uint64, err error)
+	Incr(ctx context.Context, k string, amt, def uint64, exp uint32) (casOut uint64, err error)
 
 	// GetExpiry returns the document's current expiration timestamp.
 	GetExpiry(ctx context.Context, k string) (expiry uint32, err error)
 
 	// Exists tests whether a document exists.
 	// A tombstone with a nil value is still considered to exist.
-	Exists(k string) (exists bool, err error)
+	Exists(ctx context.Context, k string) (exists bool, err error)
 }
 
 // SubdocStore is an extension of KVStore that allows individual properties in a document to be accessed.
@@ -483,13 +492,14 @@ var ErrNeedBody = errors.New("body must be specified")
 
 // UpdateFunc is a callback passed to KVStore.Update.
 // Parameters:
+// - ctx: Context inherited from the Update call (for logging).
 // - current: The document's current raw value. nil if it's a tombstone or doesn't exist.
 // Results:
 // - updated: The new value to store, or nil to leave the value alone.
 // - expiry: Nil to leave expiry alone, else a pointer to a new timestamp.
 // - delete: If true, the document will be deleted.
 // - err: Returning an error aborts the update.
-type UpdateFunc func(current []byte) (updated []byte, expiry *uint32, delete bool, err error)
+type UpdateFunc func(ctx context.Context, current []byte) (updated []byte, expiry *uint32, delete bool, err error)
 
 // UpdatedDoc is returned by WriteUpdateWithXattrsFunc, to indicate the new document value and xattrs.
 type UpdatedDoc struct {
@@ -503,10 +513,11 @@ type UpdatedDoc struct {
 
 // WriteUpdateWithXattrsFunc is used by XattrStore.WriteUpdateWithXattrs, used to transform the doc in preparation for update.
 // Parameters:
+// - ctx: Context inherited from the WriteUpdateWithXattrs call (for logging).
 // - doc: Current document raw value
 // - xattrs: Current value of xattrs
 // - cas: Document's current CAS
 // Return values:
 // - UpdatedDoc: New value to store (or nil to leave unchanged)
 // - err: If non-nil, cancels update.
-type WriteUpdateWithXattrsFunc func(doc []byte, xattrs map[string][]byte, cas uint64) (UpdatedDoc, error)
+type WriteUpdateWithXattrsFunc func(ctx context.Context, doc []byte, xattrs map[string][]byte, cas uint64) (UpdatedDoc, error)

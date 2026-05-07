@@ -12,6 +12,7 @@ package sgbucket
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -74,9 +75,9 @@ type FeedEvent struct {
 // MutationFeed shows events from the bucket can be read from the channel returned by Events().
 // Remember to call Close() on it when you're done, unless its channel has closed itself already.
 type MutationFeed interface {
-	Events() <-chan FeedEvent      // Read only channel to read TapEvents
-	WriteEvents() chan<- FeedEvent // Write only channel to write TapEvents
-	Close() error                  // Close the tap feed
+	Events(ctx context.Context) <-chan FeedEvent      // Read only channel to read TapEvents
+	WriteEvents(ctx context.Context) chan<- FeedEvent // Write only channel to write TapEvents
+	Close(ctx context.Context) error                  // Close the tap feed
 }
 
 // FeedArguments are options for starting a MutationFeed
@@ -115,8 +116,9 @@ const FeedNoBackfill = math.MaxUint64
 const FeedResume = 1
 
 // FeedEventCallbackFunc performs mutation processing.  Return value indicates whether the mutation should trigger
-// checkpoint persistence (used to avoid recursive checkpoint document processing)
-type FeedEventCallbackFunc func(event FeedEvent) bool
+// checkpoint persistence (used to avoid recursive checkpoint document processing).
+// ctx is inherited from the StartDCPFeed call, and should be used for logging.
+type FeedEventCallbackFunc func(ctx context.Context, event FeedEvent) bool
 
 // ErrXattrInvalidLen is returned if the xattr is corrupt.
 var ErrXattrInvalidLen = errors.New("Xattr stream length")
