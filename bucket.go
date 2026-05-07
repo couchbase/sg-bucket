@@ -44,18 +44,18 @@ const (
 
 // BucketStore is a basic interface that describes a bucket - with one or many underlying DataStore.
 type BucketStore interface {
-	GetName() string       // The bucket's name
-	UUID() (string, error) // The bucket's UUID
-	Close(context.Context) // Closes the bucket
+	GetName() string                          // The bucket's name
+	UUID(ctx context.Context) (string, error) // The bucket's UUID
+	Close(ctx context.Context)                // Closes the bucket
 
 	// A list of all DataStore names in the bucket.
-	ListDataStores() ([]DataStoreName, error)
+	ListDataStores(ctx context.Context) ([]DataStoreName, error)
 
 	// The default data store of the bucket (always exists.)
-	DefaultDataStore() DataStore
+	DefaultDataStore(ctx context.Context) DataStore
 
 	// Returns a named data store in the bucket, or an error if it doesn't exist.
-	NamedDataStore(DataStoreName) (DataStore, error)
+	NamedDataStore(ctx context.Context, name DataStoreName) (DataStore, error)
 
 	MutationFeedStore
 	BucketStoreFeatureIsSupported
@@ -396,7 +396,7 @@ type DeletableBucket = DeleteableStore
 
 // FlushableStore is a data store that supports flush.
 type FlushableStore interface {
-	Flush() error
+	Flush(ctx context.Context) error
 }
 
 // WriteOptions are option flags for the Write method.
