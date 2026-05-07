@@ -145,7 +145,7 @@ func NewMacroExpansionSpec(specPath string, macro MacroExpansionType) MacroExpan
 
 // A KVStore implements the basic key-value CRUD operations.
 type KVStore interface {
-	// Get retrives a document value of a key and unmarshals it.
+	// Get retrieves a document value of a key and unmarshals it.
 	// Parameters:
 	// - ctx: Context for logging and cancellation
 	// - k: The key (document ID)
@@ -197,7 +197,7 @@ type KVStore interface {
 	// - err: Error, if any. Does not return ErrKeyExists.
 	AddRaw(ctx context.Context, k string, exp uint32, v []byte) (added bool, err error)
 
-	// Set upserts a a document, creating it if it doesn't exist.
+	// Set upserts a document, creating it if it doesn't exist.
 	// Parameters:
 	// - ctx: Context for logging and cancellation
 	// - k: The key (document ID)
@@ -242,7 +242,7 @@ type KVStore interface {
 
 	// Remove a document if its CAS matches the given value.
 	// System xattrs are preserved but user xattrs are removed.
-	// Returns an erorr if the document doesn't exist or has no value. Returns a CasMismatchErr if the CAS doesn't match.
+	// Returns an error if the document doesn't exist or has no value. Returns a CasMismatchErr if the CAS doesn't match.
 	Remove(ctx context.Context, k string, cas uint64) (casOut uint64, err error)
 
 	// Update interactively updates a document. The document's current value (nil if none) is passed to
