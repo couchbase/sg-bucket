@@ -512,11 +512,10 @@ type UpdatedDoc struct {
 
 // WriteUpdateWithXattrsFunc is used by XattrStore.WriteUpdateWithXattrs, used to transform the doc in preparation for update.
 // Parameters:
-// - ctx: Context inherited from the WriteUpdateWithXattrs call (for logging).
 // - doc: Current document raw value
 // - xattrs: Current value of xattrs
 // - cas: Document's current CAS
 // Return values:
 // - UpdatedDoc: New value to store (or nil to leave unchanged)
 // - err: If non-nil, cancels update.
-type WriteUpdateWithXattrsFunc func(ctx context.Context, doc []byte, xattrs map[string][]byte, cas uint64) (UpdatedDoc, error)
+type WriteUpdateWithXattrsFunc func(doc []byte, xattrs map[string][]byte, cas uint64) (UpdatedDoc, error)
