@@ -492,14 +492,13 @@ var ErrNeedBody = errors.New("body must be specified")
 
 // UpdateFunc is a callback passed to KVStore.Update.
 // Parameters:
-// - ctx: Context inherited from the Update call (for logging).
 // - current: The document's current raw value. nil if it's a tombstone or doesn't exist.
 // Results:
 // - updated: The new value to store, or nil to leave the value alone.
 // - expiry: Nil to leave expiry alone, else a pointer to a new timestamp.
 // - delete: If true, the document will be deleted.
 // - err: Returning an error aborts the update.
-type UpdateFunc func(ctx context.Context, current []byte) (updated []byte, expiry *uint32, delete bool, err error)
+type UpdateFunc func(current []byte) (updated []byte, expiry *uint32, delete bool, err error)
 
 // UpdatedDoc is returned by WriteUpdateWithXattrsFunc, to indicate the new document value and xattrs.
 type UpdatedDoc struct {
