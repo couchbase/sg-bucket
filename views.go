@@ -24,10 +24,10 @@ import (
 // Supported parameters are: descending, endkey, group, group_level, include_docs, inclusive_end,
 // key, keys, limit, reduce, stale, startkey
 type ViewStore interface {
-	GetDDoc(docname string) (DesignDoc, error)                           // Gets a DesignDoc given its name.
-	GetDDocs() (map[string]DesignDoc, error)                             // Gets all the DesignDocs.
+	GetDDoc(ctx context.Context, docname string) (DesignDoc, error)      // Gets a DesignDoc given its name.
+	GetDDocs(ctx context.Context) (map[string]DesignDoc, error)          // Gets all the DesignDocs.
 	PutDDoc(ctx context.Context, docname string, value *DesignDoc) error // Stores a design doc. (Must not be nil.)
-	DeleteDDoc(docname string) error                                     // Deletes a design doc.
+	DeleteDDoc(ctx context.Context, docname string) error                // Deletes a design doc.
 
 	// Issues a view query, and returns the results all at once.
 	// Parameters:
@@ -180,15 +180,15 @@ func ParseViewParams(jsonParams map[string]any) (params ViewParams, err error) {
 }
 
 // Applies view params (startkey/endkey, limit, etc) to a ViewResult.
-func (result *ViewResult) Process(jsonParams map[string]interface{}, ds DataStore, reduceFunction string) error {
+func (result *ViewResult) Process(ctx context.Context, jsonParams map[string]interface{}, ds DataStore, reduceFunction string) error {
 	params, err := ParseViewParams(jsonParams)
 	if err != nil {
 		return err
 	}
-	return result.ProcessParsed(params, ds, reduceFunction)
+	return result.ProcessParsed(ctx, params, ds, reduceFunction)
 }
 
-func (result *ViewResult) ProcessParsed(params ViewParams, ds DataStore, reduceFunction string) error {
+func (result *ViewResult) ProcessParsed(ctx context.Context, params ViewParams, ds DataStore, reduceFunction string) error {
 
 	if params.Keys != nil {
 		result.FilterKeys(params.Keys)
@@ -209,7 +209,7 @@ func (result *ViewResult) ProcessParsed(params ViewParams, ds DataStore, reduceF
 			if rowPtr.Doc == nil {
 				//OPT: This may unmarshal the same doc more than once
 				newRow := *rowPtr
-				_, err := ds.Get(newRow.ID, &newRow.Doc)
+				_, err := ds.Get(ctx, newRow.ID, &newRow.Doc)
 				if err != nil {
 					return err
 				}
@@ -476,7 +476,7 @@ func (result *ViewResult) Less(i, j int) bool {
 //////// ViewResult: Implementation of QueryResultIterator interface
 
 // Note: iterIndex is a 1-based counter, for consistent error handling w/ gocb's iterators
-func (r *ViewResult) NextBytes() []byte {
+func (r *ViewResult) NextBytes(_ context.Context) []byte {
 
 	if len(r.Errors) > 0 || r.iterErr != nil {
 		return nil
@@ -497,12 +497,12 @@ func (r *ViewResult) NextBytes() []byte {
 
 }
 
-func (r *ViewResult) Next(_ context.Context, valuePtr interface{}) bool {
+func (r *ViewResult) Next(ctx context.Context, valuePtr interface{}) bool {
 	if len(r.Errors) > 0 || r.iterErr != nil {
 		return false
 	}
 
-	row := r.NextBytes()
+	row := r.NextBytes(ctx)
 	if row == nil {
 		return false
 	}
@@ -511,7 +511,7 @@ func (r *ViewResult) Next(_ context.Context, valuePtr interface{}) bool {
 	return r.iterErr == nil
 }
 
-func (r *ViewResult) Close() error {
+func (r *ViewResult) Close(_ context.Context) error {
 	if r.iterErr != nil {
 		return r.iterErr
 	}
@@ -525,7 +525,7 @@ func (r *ViewResult) Close() error {
 
 func (r *ViewResult) One(ctx context.Context, valuePtr interface{}) error {
 	if !r.Next(ctx, valuePtr) {
-		err := r.Close()
+		err := r.Close(ctx)
 		if err != nil {
 			return err
 		}
@@ -533,6 +533,6 @@ func (r *ViewResult) One(ctx context.Context, valuePtr interface{}) error {
 	}
 
 	// Ignore any errors occurring after we already have our result
-	_ = r.Close()
+	_ = r.Close(ctx)
 	return nil
 }

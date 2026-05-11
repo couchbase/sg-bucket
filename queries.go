@@ -47,10 +47,11 @@ var ErrIndexExists = fmt.Errorf("index already exists")
 // QueryableStore can run queries in some query language(s).
 type QueryableStore interface {
 	// Returns true if the given query language is supported.
-	CanQueryIn(language QueryLanguage) bool
+	CanQueryIn(ctx context.Context, language QueryLanguage) bool
 
 	// Runs a query.
 	Query(
+		ctx context.Context,
 		language QueryLanguage,
 		statement string,
 		args map[string]any,
@@ -59,10 +60,10 @@ type QueryableStore interface {
 	) (QueryResultIterator, error)
 
 	// Creates an index.
-	CreateIndex(indexName string, expression string, filterExpression string) error
+	CreateIndex(ctx context.Context, indexName string, expression string, filterExpression string) error
 
 	// Returns an object containing an explanation of the database's query plan.
-	ExplainQuery(statement string, params map[string]any) (plan map[string]any, err error)
+	ExplainQuery(ctx context.Context, statement string, params map[string]any) (plan map[string]any, err error)
 }
 
 // Common query iterator interface,
@@ -74,7 +75,7 @@ type QueryResultIterator interface {
 	// Returns false when reaching end of result set.
 	Next(ctx context.Context, valuePtr any) bool
 	// Retrieves raw JSON bytes for the next result row.
-	NextBytes() []byte
+	NextBytes(ctx context.Context) []byte
 	// Closes the iterator.  Returns any row-level errors seen during iteration.
-	Close() error
+	Close(ctx context.Context) error
 }
