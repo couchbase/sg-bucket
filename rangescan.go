@@ -8,13 +8,15 @@
 
 package sgbucket
 
+import "context"
+
 // ScanTerm represents a boundary term for a range scan.
 type ScanTerm struct {
 	Term      string
 	Exclusive bool
 }
 
-// ScanType is implemented by RangeScan and SamplingScan.
+// ScanType is implemented by range scan types such as RangeScan.
 type ScanType interface {
 	isScanType()
 }
@@ -33,24 +35,25 @@ type ScanOptions struct {
 }
 
 // ScanResultItem represents a single document returned by a Scan.
+// Body is nil when ScanOptions.IDsOnly is true.
 type ScanResultItem struct {
-	ID     string
-	Body   []byte // nil when IDsOnly is true
-	Cas    uint64
-	IDOnly bool
+	ID   string
+	Body []byte
+	Cas  uint64
 }
 
 // ScanResultIterator iterates over the results of a Scan operation.
+// Next returns nil at end-of-stream or on error; call Close to retrieve any error.
 type ScanResultIterator interface {
-	// Next returns the next item, or nil when iteration is complete.
-	Next() *ScanResultItem
-	// Close releases any resources held by the iterator.
-	Close() error
+	// Next returns the next item, or nil when iteration is complete or an error has occurred.
+	Next(ctx context.Context) *ScanResultItem
+	// Close releases any resources held by the iterator and returns any errors seen during iteration.
+	Close(ctx context.Context) error
 }
 
 // RangeScanStore is a data store that supports KV range scan operations.
 type RangeScanStore interface {
-	Scan(scanType ScanType, opts ScanOptions) (ScanResultIterator, error)
+	Scan(ctx context.Context, scanType ScanType, opts ScanOptions) (ScanResultIterator, error)
 }
 
 // NewRangeScanForPrefix creates a RangeScan that matches all keys with the given prefix.
