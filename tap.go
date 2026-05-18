@@ -90,6 +90,7 @@ type FeedArguments struct {
 	CheckpointPrefix string              // Key of checkpoint doc to save state in, if non-empty
 	Scopes           map[string][]string // Collection names to stream - map keys are scopes
 	FeedContent      FeedContent         // Type of content to send in feed
+	MetadataStore    DataStore           // MetadataStore overrides where DCP checkpoint documents are persisted. If nil, the default data store is used.
 }
 
 // FeedContent controls the content sent in the feed
