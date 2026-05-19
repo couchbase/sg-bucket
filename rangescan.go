@@ -8,7 +8,10 @@
 
 package sgbucket
 
-import "context"
+import (
+	"context"
+	"unicode/utf8"
+)
 
 // ScanTerm represents a boundary term for a range scan.
 type ScanTerm struct {
@@ -63,7 +66,7 @@ func NewRangeScanForPrefix(prefix string) RangeScan {
 			Term: prefix,
 		},
 		To: &ScanTerm{
-			Term: prefix + "\xf48fbfbf",
+			Term: prefix + string(utf8.MaxRune),
 		},
 	}
 }
