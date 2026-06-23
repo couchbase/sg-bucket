@@ -451,7 +451,9 @@ func (result *ViewResult) makeCollationKeys() {
 
 func (result *ViewResult) Sort() {
 	result.makeCollationKeys()
-	sort.Sort(result)
+	// sort.Sort is used instead of slices.SortFunc to avoid allocating a temporary paired slice
+	// to keep Rows and collationKeys in sync; sort.Interface methods operate on both in-place.
+	sort.Sort(result) //nolint:revive
 }
 
 func (result *ViewResult) Len() int {
