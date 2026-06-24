@@ -105,16 +105,14 @@ func TestHybridLogicalClockConcurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 	results := make([][]uint64, goroutines)
-	for g := 0; g < goroutines; g++ {
-		wg.Add(1)
-		go func(g int) {
-			defer wg.Done()
+	for g := range goroutines {
+		wg.Go(func() {
 			values := make([]uint64, perGoroutine)
 			for i := range values {
 				values[i] = hlc.Now(0)
 			}
 			results[g] = values
-		}(g)
+		})
 	}
 	wg.Wait()
 

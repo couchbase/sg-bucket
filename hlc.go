@@ -36,7 +36,7 @@ type HybridLogicalClock struct {
 
 // NewHybridLogicalClock returns a HybridLogicalClock backed by the system wall clock.
 func NewHybridLogicalClock() *HybridLogicalClock {
-	return &HybridLogicalClock{clock: func() uint64 { return hlcWallClock() }}
+	return &HybridLogicalClock{clock: hlcWallClock}
 }
 
 // HLCWallClock returns the current wall-clock time in nanoseconds since the Unix epoch, using the same
