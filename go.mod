@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/robertkrimen/otto v0.0.0-20211024170158-b87d35c0b86f
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/sys v0.46.0
 	golang.org/x/text v0.38.0
 )
 
