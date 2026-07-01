@@ -46,10 +46,18 @@ type ScanResultItem struct {
 }
 
 // ScanResultIterator iterates over the results of a Scan operation.
-// Next returns nil at end-of-stream or on error; call Close to retrieve any error.
+// Next returns nil at end-of-stream or on error; use Err to distinguish the two
+// and inspect any errors without closing the iterator.
 type ScanResultIterator interface {
 	// Next returns the next item, or nil when iteration is complete or an error has occurred.
 	Next(ctx context.Context) *ScanResultItem
+	// Err returns any error(s) encountered during iteration, or nil if none.
+	// How multiple errors are represented is up to the implementation — it may
+	// return the first, the last, or a wrapper joining them (e.g. via
+	// errors.Join) — so callers must not assume it identifies a single specific
+	// error. It may be called at any time (before, during, or after iteration)
+	// and does not require calling Close.
+	Err() error
 	// Close releases any resources held by the iterator and returns any errors seen during iteration.
 	Close(ctx context.Context) error
 }
