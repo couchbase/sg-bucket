@@ -10,8 +10,15 @@ package sgbucket
 
 import (
 	"context"
+	"errors"
 	"unicode/utf8"
 )
+
+// ErrScanCancelled is reported by ScanResultIterator.Err after Close has been
+// called on a scan that had not already failed. It mirrors gocb, whose Close
+// cancels any outstanding streams, causing a subsequent Err to report the
+// cancellation rather than a clean end-of-stream.
+var ErrScanCancelled = errors.New("range scan cancelled")
 
 // ScanTerm represents a boundary term for a range scan.
 type ScanTerm struct {
@@ -46,11 +53,30 @@ type ScanResultItem struct {
 }
 
 // ScanResultIterator iterates over the results of a Scan operation.
-// Next returns nil at end-of-stream or on error; call Close to retrieve any error.
+//
+// Next returns nil at end-of-stream or on error and does not distinguish the
+// two; call Err afterwards to tell them apart. The semantics below mirror
+// gocb's ScanResult so that all implementations behave identically.
 type ScanResultIterator interface {
-	// Next returns the next item, or nil when iteration is complete or an error has occurred.
+	// Next returns the next item, or nil when iteration is complete or an error
+	// has occurred. It does not itself report the error — call Err to discover
+	// whether a nil result was a clean end-of-stream or a failure.
 	Next(ctx context.Context) *ScanResultItem
-	// Close releases any resources held by the iterator and returns any errors seen during iteration.
+	// Err returns the first error recorded during iteration, or nil if none.
+	// A scan may fail across several partitions concurrently; when it does,
+	// exactly one error — the first one recorded — is returned and the rest are
+	// discarded. Errors are never combined (no errors.Join), and which specific
+	// error is returned is unspecified when failures race. Err may be called at
+	// any time (before, during, or after iteration) and does not require Close.
+	// After Close has been called on a scan that had not already failed, Err
+	// returns ErrScanCancelled.
+	Err() error
+	// Close releases any resources held by the iterator and cancels any
+	// outstanding streams. If an error was already recorded during iteration,
+	// Close returns that same error. Otherwise Close returns nil, and a
+	// subsequent Err returns ErrScanCancelled. Close is idempotent: the first
+	// Close on an otherwise-clean scan returns nil; later calls return
+	// ErrScanCancelled.
 	Close(ctx context.Context) error
 }
 
