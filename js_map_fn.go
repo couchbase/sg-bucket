@@ -11,10 +11,9 @@ package sgbucket
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
-	"github.com/robertkrimen/otto"
+	"github.com/dop251/goja"
 )
 
 const kTaskCacheSize = 4
@@ -35,20 +34,17 @@ func newJsMapTask(funcSource string, timeout time.Duration) (JSServerTask, error
 	}
 
 	// Implementation of the 'emit()' callback:
-	mapper.DefineNativeFunction("emit", func(call otto.FunctionCall) otto.Value {
-		key, err1 := call.ArgumentList[0].Export()
-		value, err2 := call.ArgumentList[1].Export()
-		if err1 != nil || err2 != nil {
-			panic(fmt.Sprintf("Unsupported key or value types: emit(%#v,%#v): %v %v", key, value, err1, err2))
-		}
+	mapper.DefineNativeFunction("emit", func(call goja.FunctionCall) goja.Value {
+		key := ExportValue(call.Argument(0))
+		value := ExportValue(call.Argument(1))
 		mapper.output = append(mapper.output, &ViewRow{Key: key, Value: value})
-		return otto.UndefinedValue()
+		return goja.Undefined()
 	})
 
 	mapper.Before = func() {
 		mapper.output = []*ViewRow{}
 	}
-	mapper.After = func(result otto.Value, err error) (interface{}, error) {
+	mapper.After = func(result goja.Value, err error) (interface{}, error) {
 		output := mapper.output
 		mapper.output = nil
 		return output, err
