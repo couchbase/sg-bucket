@@ -75,7 +75,7 @@ func (runner *JSRunner) InitWithLogging(funcSource string, timeout time.Duration
 	runner.fn = nil
 	runner.timeout = timeout
 
-	if underscoreJSEnabled {
+	if underscoreJSEnabled.Load() {
 		if _, err := runner.js.RunString(underscoreJSSource); err != nil {
 			return fmt.Errorf("Unable to load underscore.js: %w", err)
 		}
@@ -280,7 +280,7 @@ func normalizeForJS(value interface{}) interface{} {
 			out[k.String()] = normalizeForJS(rv.MapIndex(k).Interface())
 		}
 		return out
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if rv.IsNil() {
 			return value
 		}
@@ -315,6 +315,31 @@ func plainPrimitive(rv reflect.Value) (interface{}, bool) {
 		return rv.Convert(reflect.TypeOf(float64(0))).Interface(), true
 	}
 	return nil, false
+}
+
+// unconvertibleGoInputKind reports whether value is a Go value goja.ToValue can only wrap as an
+// inert, opaque Go-reflection object with no usable JS representation -- a channel, complex
+// number, or unsafe pointer. Otto (this package's previous JS engine) returned a TypeError
+// converting exactly these kinds; goja's ToValue never errors, so Call() checks explicitly to
+// keep failing fast on inputs that were never meant to cross the JS boundary, rather than
+// silently handing the JS function an object it can't do anything useful with. Types goja can
+// usefully convert -- structs, maps, slices, Go funcs (callable from JS) -- are left alone.
+func unconvertibleGoInputKind(value interface{}) (reflect.Kind, bool) {
+	if value == nil {
+		return reflect.Invalid, false
+	}
+	rv := reflect.ValueOf(value)
+	for rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return reflect.Invalid, false
+		}
+		rv = rv.Elem()
+	}
+	switch rv.Kind() {
+	case reflect.Chan, reflect.Complex64, reflect.Complex128, reflect.UnsafePointer:
+		return rv.Kind(), true
+	}
+	return rv.Kind(), false
 }
 
 // Invokes the JS function with JSON inputs.
@@ -359,6 +384,9 @@ func (runner *JSRunner) Call(ctx context.Context, inputs ...interface{}) (_ inte
 					return nil, err
 				}
 			}
+			if kind, unsupported := unconvertibleGoInputKind(input); unsupported {
+				return nil, fmt.Errorf("Couldn't convert %#v to JS: unsupported type %s", input, kind)
+			}
 			inputJS[i] = runner.ToValue(input)
 		}
 
@@ -383,25 +411,35 @@ func (runner *JSRunner) call(inputJS ...interface{}) (goja.Value, error) {
 	}
 
 	var timer *time.Timer
+	var timerFired chan struct{}
 	if runner.timeout > 0 {
+		timerFired = make(chan struct{})
 		timer = time.AfterFunc(runner.timeout, func() {
 			runner.js.Interrupt(ErrJSTimeout)
+			close(timerFired)
 		})
 	}
 
 	result, err := runner.fn(goja.Undefined(), args...)
 
-	if timer != nil {
-		timer.Stop()
+	if timer != nil && !timer.Stop() {
+		// The timer has already fired (or is in the process of firing): time.Timer.Stop()
+		// does not wait for an in-flight AfterFunc callback to finish, so without waiting here
+		// ClearInterrupt() below could run concurrently with, or before, the callback's
+		// Interrupt() call, leaving the runtime's interrupt flag set with nothing left to clear
+		// it -- poisoning it for its next use (JSRunner instances are pooled and reused by
+		// JSServer). Waiting for the callback to finish guarantees Interrupt() (if it happens
+		// at all) always happens-before ClearInterrupt().
+		<-timerFired
 	}
-	// Always clear the interrupt flag before this runtime is reused for another call: if the
-	// timer fired concurrently with the call finishing on its own, the runtime could otherwise
-	// be left poisoned for its next use (JSRunner instances are pooled and reused by JSServer.)
 	runner.js.ClearInterrupt()
 
-	if interrupted, ok := err.(*goja.InterruptedError); ok && interrupted.Value() == ErrJSTimeout {
+	if errors.Is(err, ErrJSTimeout) {
+		// *goja.InterruptedError.Unwrap() returns the value passed to Interrupt(), which is
+		// always ErrJSTimeout itself (see the AfterFunc above) -- so errors.Is correctly matches
+		// through the wrapping without needing a type assertion on *goja.InterruptedError.
 		err = ErrJSTimeout
-	} else if _, ok := err.(*goja.StackOverflowError); ok {
+	} else if _, ok := errors.AsType[*goja.StackOverflowError](err); ok {
 		// goja's *StackOverflowError.Error() carries no message, just a stack trace (it's
 		// thrown without an associated JS Error value) -- give callers something meaningful.
 		err = errors.New("RangeError: Maximum call stack size exceeded")

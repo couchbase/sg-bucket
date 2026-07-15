@@ -38,6 +38,21 @@ func TestTimeout(t *testing.T) {
 	assert.ErrorIs(t, err, ErrJSTimeout)
 }
 
+// emit()ing a JS function (or other value goja can't export to a JSON-safe Go type) must fail
+// the map call, not silently produce a ViewRow whose Key/Value can't be JSON-marshaled later.
+func TestEmitUnsupportedValueType(t *testing.T) {
+	ctx := testCtx(t)
+	mapper := NewJSMapFunction(ctx, `function(doc) {emit(function(){}, "v");}`, 0)
+	rows, err := mapper.CallFunction(ctx, &JSMapFunctionInput{`{}`, "doc1", 0, 0, nil})
+	assert.Error(t, err)
+	assert.Nil(t, rows)
+
+	mapper = NewJSMapFunction(ctx, `function(doc) {emit("k", function(){});}`, 0)
+	rows, err = mapper.CallFunction(ctx, &JSMapFunctionInput{`{}`, "doc1", 0, 0, nil})
+	assert.Error(t, err)
+	assert.Nil(t, rows)
+}
+
 func testMap(t *testing.T, mapFn string, doc string) []*ViewRow {
 	ctx := testCtx(t)
 	mapper := NewJSMapFunction(ctx, mapFn, 0)

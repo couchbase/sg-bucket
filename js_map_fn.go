@@ -11,12 +11,20 @@ package sgbucket
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"time"
 
 	"github.com/dop251/goja"
 )
 
 const kTaskCacheSize = 4
+
+// isUnsupportedEmitValue reports whether v (the result of ExportValue on a value passed to
+// emit()) can't be represented as JSON -- notably a JS function, which goja.Value.Export()s as
+// the literal Go func that implements it.
+func isUnsupportedEmitValue(v interface{}) bool {
+	return reflect.ValueOf(v).Kind() == reflect.Func
+}
 
 // A compiled JavaScript 'map' function, API-compatible with Couchbase Server 2.0.
 // Based on JSRunner, so this is not thread-safe; use its wrapper JSMapFunction for that.
@@ -37,6 +45,15 @@ func newJsMapTask(funcSource string, timeout time.Duration) (JSServerTask, error
 	mapper.DefineNativeFunction("emit", func(call goja.FunctionCall) goja.Value {
 		key := ExportValue(call.Argument(0))
 		value := ExportValue(call.Argument(1))
+		if isUnsupportedEmitValue(key) || isUnsupportedEmitValue(value) {
+			// goja.Value.Export() never errors (unlike otto's, which this replaced): a JS
+			// function exports as the literal Go func that implements it, which isn't caught
+			// here and would otherwise reach ViewRow.Key/Value and fail json.Marshal later, far
+			// from the map function that caused it. Throwing a JS-catchable error (rather than a
+			// raw Go panic, which goja does not recover from a native function) keeps this
+			// failing fast, matching Otto's behavior.
+			panic(mapper.VM().NewTypeError("Unsupported key or value type in emit(%#v, %#v)", key, value))
+		}
 		mapper.output = append(mapper.output, &ViewRow{Key: key, Value: value})
 		return goja.Undefined()
 	})
