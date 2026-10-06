@@ -17,7 +17,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strings"
 	"time"
 )
 
@@ -231,40 +230,31 @@ func decodeValueWithXattrs(data []byte, xattrNames []string, allXattrs bool) (bo
 		return body, nil, nil
 	}
 
-	// In the xattr key/value pairs, key and value are both terminated by 0x00 (byte(0)).  Use this as a separator to split the byte slice
-	separator := []byte("\x00")
-
 	xattrs = make(map[string][]byte, len(xattrNames))
-	// Iterate over xattr key/value pairs
-	pos := uint32(4)
-	for pos < xattrsLen {
-		pairLen := binary.BigEndian.Uint32(data[pos : pos+4])
-		if pairLen == 0 || int(pos+pairLen) > len(data) {
-			return nil, nil, fmt.Errorf("invalid DCP xattr data: unexpected xattr pair length (%d)", pairLen)
+	if !allXattrs && len(xattrNames) == 0 {
+		return body, xattrs, nil
+	}
+	pos, sectionEnd := uint64(4), uint64(xattrsLen)+4
+	for pos < uint64(xattrsLen) {
+		xattrKey, xattrValue, next, err := nextXattrPair(data, pos, sectionEnd)
+		if err != nil {
+			return nil, nil, err
 		}
-		pos += 4
-		pairBytes := data[pos : pos+pairLen]
-		components := bytes.Split(pairBytes, separator)
-		// xattr pair has the format [key]0x00[value]0x00, and so should split into three components
-		if len(components) != 3 {
-			return nil, nil, fmt.Errorf("Unexpected number of components found in xattr pair: %s", pairBytes)
-		}
-		xattrKey := string(components[0])
 		if allXattrs {
-			xattrs[xattrKey] = components[1]
+			xattrs[string(xattrKey)] = xattrValue
 		} else {
 			for _, xattrName := range xattrNames {
-				if xattrName == xattrKey {
-					xattrs[xattrName] = components[1]
+				if string(xattrKey) == xattrName {
+					xattrs[xattrName] = xattrValue
 					break
 				}
 			}
 			// Exit if we have all xattrs we want
-			if !allXattrs && len(xattrs) == len(xattrNames) {
+			if len(xattrs) == len(xattrNames) {
 				return body, xattrs, nil
 			}
 		}
-		pos += pairLen
+		pos = next
 	}
 	return body, xattrs, nil
 }
@@ -286,29 +276,53 @@ func DecodeXattrNames(data []byte, systemOnly bool) (xattrKeys []string, err err
 		return nil, nil
 	}
 
-	// In the xattr key/value pairs, key and value are both terminated by 0x00 (byte(0)).  Use this as a separator to split the byte slice
-	separator := []byte("\x00")
-
-	// Iterate over xattr key/value pairs
-	xattrKeys = make([]string, 0)
-	pos := uint32(4)
-	for pos < xattrsLen {
-		pairLen := binary.BigEndian.Uint32(data[pos : pos+4])
-		if pairLen == 0 || int(pos+pairLen) > len(data) {
-			return nil, fmt.Errorf("invalid DCP xattr data: unexpected xattr pair length (%d)", pairLen)
+	xattrKeys = make([]string, 0, 8)
+	pos, sectionEnd := uint64(4), uint64(xattrsLen)+4
+	for pos < uint64(xattrsLen) {
+		xattrName, _, next, err := nextXattrPair(data, pos, sectionEnd)
+		if err != nil {
+			return nil, err
 		}
-		pos += 4
-		pairBytes := data[pos : pos+pairLen]
-		components := bytes.Split(pairBytes, separator)
-		// xattr pair has the format [key]0x00[value]0x00, and so should split into three components
-		if len(components) != 3 {
-			return nil, fmt.Errorf("Unexpected number of components found in xattr pair: %s", pairBytes)
+		if !systemOnly || (len(xattrName) > 0 && xattrName[0] == '_') {
+			xattrKeys = append(xattrKeys, string(xattrName))
 		}
-		xattrName := string(components[0])
-		if !systemOnly || strings.HasPrefix(xattrName, "_") {
-			xattrKeys = append(xattrKeys, xattrName)
-		}
-		pos += pairLen
+		pos = next
 	}
 	return xattrKeys, nil
+}
+
+// nextXattrPair decodes the length-prefixed xattr pair at data[pos:], which must end at or before sectionEnd.
+// It returns the key, the value and the position of the next pair.
+func nextXattrPair(data []byte, pos, sectionEnd uint64) (key, value []byte, next uint64, err error) {
+	pairLen := uint64(binary.BigEndian.Uint32(data[pos : pos+4]))
+	pos += 4
+	if pairLen == 0 || pos+pairLen > sectionEnd {
+		return nil, nil, 0, fmt.Errorf("invalid DCP xattr data: unexpected xattr pair length (%d)", pairLen)
+	}
+	key, value, err = splitXattrPair(data[pos : pos+pairLen])
+	return key, value, pos + pairLen, err
+}
+
+// splitXattrPair splits an xattr pair with the format [key]0x00[value]0x00 into key and value.
+func splitXattrPair(pair []byte) (key, value []byte, err error) {
+	keyEnd := bytes.IndexByte(pair, 0)
+	if keyEnd < 0 {
+		return nil, nil, malformedXattrPairError(pair)
+	}
+	rest := pair[keyEnd+1:]
+	valueEnd := bytes.IndexByte(rest, 0)
+	if valueEnd < 0 || bytes.IndexByte(rest[valueEnd+1:], 0) >= 0 {
+		return nil, nil, malformedXattrPairError(pair)
+	}
+	// Limit capacity so that an append to the value cannot overwrite the rest of the DCP data.
+	return pair[:keyEnd], rest[:valueEnd:valueEnd], nil
+}
+
+// malformedXattrPairError returns an error that quotes at most the first 64 bytes of pair.
+func malformedXattrPairError(pair []byte) error {
+	const maxLoggedLen = 64
+	if len(pair) > maxLoggedLen {
+		return fmt.Errorf("invalid DCP xattr data: malformed xattr pair %q... (%d bytes)", pair[:maxLoggedLen], len(pair))
+	}
+	return fmt.Errorf("invalid DCP xattr data: malformed xattr pair %q", pair)
 }
